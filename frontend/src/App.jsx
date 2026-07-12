@@ -711,7 +711,7 @@ function ProcessPanel({
       <div className="panel-header">
         <div>
           <div className="panel-title">PROCESS</div>
-          <div className="panel-sub">SIGNAL PROCESSING</div>
+          <div className="panel-sub">SIGNAL PROCESSING · v4.6</div>
         </div>
         {selectedArtwork && (
           <div className="f-data" style={{fontSize:10,color:"var(--txt-dim)"}}>

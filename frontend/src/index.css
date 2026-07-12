@@ -1718,32 +1718,21 @@ select.field-input { height:40px !important; }
 }
 
 /* ── GLASSMORPHISM ───────────────────────────────── */
-/* Butonlar */
+/* NOT: backdrop-filter cok sayida elemanda kullanilinca Chrome'un
+   kompozitoru scroll paneli icindeki kardes elemanlari (CTA butonlari)
+   boyamayabiliyor. Bu yuzden blur SADECE az sayida statik yuzeyde;
+   butonlar/chipler yari saydam arka planla cam gorunumu alir (blursuz). */
 .btn-sec, .btn-ghost, .btn-icon, .btn-danger, .btn-download,
 .chip, .combo-chip, .plat-card, .quality-card,
 .dd-trigger, .field-input, .time-btn {
-  background:rgba(12,52,44,.42) !important;
-  backdrop-filter:blur(7px);
-  -webkit-backdrop-filter:blur(7px);
+  background:rgba(12,52,44,.55) !important;
 }
-.btn-cta {
-  /* CTA solid kalir ama hafif cam parlama katmani alir */
-  position:relative; overflow:hidden;
-}
-.btn-cta::before {
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.28) 48%, transparent 62%);
-  transform:translateX(-120%);
-  transition:transform .5s ease;
-  pointer-events:none;
-}
-.btn-cta:hover:not(:disabled)::before { transform:translateX(120%); }
+/* (CTA parlama pseudo-elementi kaldirildi — scroll paneli icinde
+   Chrome'da boyama hatasina yol acabiliyordu) */
 
 /* Panel header/footer + modal + dropdown cam efekti */
 .panel-header, .panel-footer {
-  background:rgba(6,35,29,.45) !important;
-  backdrop-filter:blur(9px);
-  -webkit-backdrop-filter:blur(9px);
+  background:rgba(6,35,29,.6) !important;
 }
 .modal-panel {
   background:rgba(12,52,44,.78) !important;
@@ -1781,9 +1770,9 @@ select.field-input { height:40px !important; }
   from { opacity:0; transform:translateY(10px) scale(.995); }
   to   { opacity:1; transform:translateY(0) scale(1); }
 }
-.panel-grid { animation:grid-enter 340ms cubic-bezier(.25,.8,.3,1) both; }
-.panel-grid > .panel:nth-child(2) { animation:grid-enter 340ms cubic-bezier(.25,.8,.3,1) 60ms both; }
-.panel-grid > .panel:nth-child(3) { animation:grid-enter 340ms cubic-bezier(.25,.8,.3,1) 120ms both; }
+/* Panel giris animasyonu yalnizca opacity ile — transform fill-mode
+   scroll icindeki katmanlarin boyanmasini bozabiliyordu */
+.panel-grid { animation:fade-in 280ms ease both; }
 
 /* ── MIKRO ETKILESIMLER ──────────────────────────── */
 .dd-panel, [style*="slide-down"] { will-change:transform, opacity; }
