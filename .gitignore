@@ -1,0 +1,36 @@
+# ── GIZLI ANAHTARLAR — ASLA COMMIT ETME ──
+client_secrets.json
+youtube_token.json
+config.json
+*.token
+*_token.json
+
+# ── BUYUK MEDYA (GitHub 100MB dosya limiti) ──
+BEATS/
+STEAB/
+OUTPUT/
+ARTWORKS/
+banner art/
+BU DOSYA/
+Analytics/
+*.wav
+*.mp3
+*.flac
+*.mp4
+*.mov
+*.flp
+*.zip
+
+# ── BAGIMLILIKLAR / DERLEME ──
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── SISTEM / GECICI ──
+desktop.ini
+Thumbs.db
+*.log
+Ekran*

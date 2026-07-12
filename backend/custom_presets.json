@@ -1,0 +1,143 @@
+{
+  "fav1": {
+    "brightness": -70,
+    "chromatic_shift": 2,
+    "contrast": 2.5,
+    "duotone_highlight": [
+      50,
+      255,
+      120
+    ],
+    "duotone_intensity": 0,
+    "duotone_shadow": [
+      10,
+      30,
+      5
+    ],
+    "glow_intensity": 0.45,
+    "glow_radius": 6,
+    "grain_intensity": 0.055,
+    "grain_size": 1,
+    "halation_strength": 0,
+    "hue_shift": 49,
+    "matrix_b": [
+      0.71,
+      1,
+      0.1
+    ],
+    "matrix_g": [
+      0.41,
+      0.77,
+      0.1
+    ],
+    "matrix_r": [
+      0.48,
+      0.13,
+      0.03
+    ],
+    "name": "RAGE — Emerald Night",
+    "saturation": 1.45,
+    "scanline_intensity": 1,
+    "scanline_opacity": 0.55,
+    "scanline_warp": 0,
+    "tint_b": 212,
+    "tint_g": 180,
+    "tint_opacity": 0.1,
+    "tint_r": 0,
+    "vignette_strength": 0.65
+  },
+  "fav2": {
+    "brightness": -25,
+    "chromatic_shift": 0,
+    "contrast": 1.85,
+    "duotone_highlight": [
+      0,
+      115,
+      35
+    ],
+    "duotone_intensity": 0,
+    "duotone_shadow": [
+      0,
+      253,
+      5
+    ],
+    "glow_intensity": 0.5,
+    "glow_radius": 6,
+    "grain_intensity": 0.05,
+    "grain_size": 1,
+    "halation_strength": 0,
+    "hue_shift": 294,
+    "matrix_b": [
+      1,
+      0.25,
+      0.37
+    ],
+    "matrix_g": [
+      0.58,
+      0,
+      0.14
+    ],
+    "matrix_r": [
+      0.28,
+      0.4,
+      0.37
+    ],
+    "name": "RAGE — Emerald Night",
+    "saturation": 1.35,
+    "scanline_intensity": 0.56,
+    "scanline_opacity": 0.2,
+    "scanline_warp": 0,
+    "tint_b": 212,
+    "tint_g": 180,
+    "tint_opacity": 0.1,
+    "tint_r": 0,
+    "vignette_strength": 0.9
+  },
+  "fav3": {
+    "brightness": 10,
+    "chromatic_shift": 0,
+    "contrast": 1.9,
+    "duotone_highlight": [
+      0,
+      0,
+      0
+    ],
+    "duotone_intensity": 0,
+    "duotone_shadow": [
+      0,
+      0,
+      95
+    ],
+    "glow_intensity": 0.25,
+    "glow_radius": 23,
+    "grain_intensity": 0.05,
+    "grain_size": 1,
+    "halation_strength": 0.55,
+    "hue_shift": 294,
+    "matrix_b": [
+      0.66,
+      0.7,
+      0.66
+    ],
+    "matrix_g": [
+      0.49,
+      0.2,
+      0.46
+    ],
+    "matrix_r": [
+      0.4,
+      0.4,
+      0.23
+    ],
+    "name": "RAGE — Emerald Night",
+    "saturation": 1.5,
+    "scanline_intensity": 0.61,
+    "scanline_opacity": 0.15,
+    "scanline_warp": 0,
+    "tint_b": 112,
+    "tint_g": 221,
+    "tint_opacity": 0,
+    "tint_r": 0,
+    "vignette_strength": 0.9
+  }
+}

@@ -1,0 +1,450 @@
+YOUTUBE ALGORITHM 2026
+ Comprehensive Guide & Strategy Document
+ 
+ ENNY TANG
+ Type Beat Market | Target Market: United States
+ 
+ Date: March 22, 2026
+ Sources: vidIQ, Buffer, Sprout Social, Shopify, SocialBee, ScaleLab, Metricool,
+ PostEverywhere, Navigate Video + 12 additional sources
+ 
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 1 of 17
+
+
+TABLE OF CONTENTS
+01   What Is the Algorithm? — Core Philosophy
+02   5 Independent Recommendation Systems: Home, Suggested, Search, Shorts, Subscriptions
+03   3 Signal Categories the Algorithm Measures
+04   4-Tier Distribution Model (Tier System)
+05   CTR — Click-Through Rate Strategy
+06   Retention — The Art of Keeping Viewers
+07   Satisfaction Signals (2025-2026 Game Changer)
+08   YouTube SEO — Search Engine Optimization
+09   YouTube Shorts Algorithm
+10   Opportunity Window for Small Channels
+11   Dedicated Strategy for Type Beat Channels
+12   Optimal Upload Times (US Market)
+13   Myths vs. Facts
+14   Weekly Action Plan
+15   References
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 2 of 17
+
+
+01 — WHAT IS THE ALGORITHM? CORE PHILOSOPHY
+The YouTube algorithm is an AI-powered recommendation system designed to match each individual
+viewer with the most relevant video from the 500+ hours of content uploaded every minute. The algorithm
+has one fundamental objective: keep viewers on the platform by helping them discover content they enjoy,
+and ensure they return repeatedly.
+KEY CONCEPT: Pull Architecture
+YouTube does NOT push your videos to an audience. Instead, viewers' interests PULL content toward
+them. Your job is to create content worth pulling. This means the algorithm does not find an audience for
+your video — it finds the right video for each viewer.
+As of 2026, YouTube processes over 80 billion signals per day to answer one question: 'Will this specific
+viewer enjoy this specific video right now?' The algorithm now evaluates channel-level patterns and
+long-term viewer satisfaction more heavily than individual video performance.
+The biggest paradigm shift of 2025: YouTube moved from evaluating individual videos in isolation to
+evaluating channels as a whole. Instead of rewarding a single viral video, the algorithm now favors
+channels with a consistent identity, repeatable formats, and a predictable upload schedule. These
+channels are significantly easier to recommend.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 3 of 17
+
+
+02 — 5 INDEPENDENT RECOMMENDATION SYSTEMS
+YouTube is not a single algorithm. It consists of five separate recommendation systems, each operating
+under different rules with different objectives and metrics.
+HOME (Home Feed)
+The personalized feed viewers see when they open YouTube. It is based on watch history, recent
+interactions, and preferences of users with similar profiles. Small channels can appear on the Home feed if
+they have strong packaging (thumbnail + title) and high retention. Subscriber count is NOT a factor.
+Primary Signals: CTR + Video Velocity (momentum in the first few hours after upload)
+SUGGESTED (Suggested Videos)
+The recommendations displayed alongside or below the video currently being watched. The algorithm
+aims to continue the viewing session by predicting what the current viewer will want to watch next. Linking
+your own videos together (via playlists, end screens) is critical here.
+Primary Signals: Topic similarity + Viewer profile matching + Session continuation
+SEARCH (Search Results)
+Results that appear when a viewer types a query. Keyword relevance is the initial filter, followed by ranking
+based on satisfaction signals. Two different users searching the same query may see different results
+because their personal watch histories differ. For type beat channels, Search is the MOST IMPORTANT
+surface.
+Primary Signals: Keyword relevance + Personal watch history + Retention
+SUBSCRIPTIONS (Subscriptions Feed)
+The feed showing new uploads from subscribed channels. Inactive subscribers lower your CTR. Organic,
+gradual growth is healthier than a large but passive subscriber base.
+Primary Signals: Upload consistency + Subscriber activity level
+SHORTS (Shorts Feed)
+The vertical, swipeable feed. Operates entirely differently from long-form content. In 2026, YouTube added
+Shorts-specific search filters, making SEO relevant for Shorts as well. Shorts can serve as a discovery tool
+that drives traffic to long-form videos.
+Primary Signals: Swipe-away rate + Completion rate + Loop rate + Search relevance
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 4 of 17
+
+
+03 — 3 SIGNAL CATEGORIES THE ALGORITHM
+MEASURES
+In 2026, YouTube's recommendation system processes hundreds of signals, but all of them fall into three
+core categories. Understanding these three groups is the foundation of all strategy.
+A) CLICK SIGNALS
+Impressions (number of times your thumbnail is shown), CTR (percentage of impressions that result in
+clicks), and your video's performance relative to other options shown to the same viewer. Important: High
+CTR combined with low retention is harmful because YouTube interprets this as a broken promise (the
+thumbnail/title set an expectation the video failed to deliver).
+ Target CTR: 4-10% depending on niche
+ CTR below 3%: Thumbnail or title is not compelling enough
+ 90% of top-performing videos use custom thumbnails
+ Strong facial expressions in thumbnails can increase CTR by 20-30%
+B) WATCH / RETENTION SIGNALS
+Average view duration, audience retention rate, and session duration. 50-60% average view duration is
+considered solid. 70% or higher earns priority placement in Suggested videos. Low retention is usually
+solved by improving the intro, not by making shorter videos — the most common problem is a slow first 30
+seconds.
+ Retention matters more than raw watch time: A short video watched to completion beats a long video
+with 40% retention
+ Use pattern interrupts (visual change, music shift, or rhythm change) every 20-30 seconds
+ In the first 7-10 seconds, clearly state what the viewer will gain from watching
+C) SATISFACTION SIGNALS (2025-2026 Game Changer)
+This is the biggest change in 2025-2026. YouTube now collects millions of post-watch survey responses
+asking viewers whether they were satisfied with what they watched. Machine learning models trained on
+these survey responses now predict satisfaction for ALL users.
+ Repeat views: Does the viewer re-watch the video? (Strong positive signal)
+ Survey responses: Did the video meet the viewer's expectations?
+ 'Not Interested' clicks: Are people actively avoiding the content? (Strong negative signal)
+ Sentiment analysis: Comment tone and sentiment now influence recommendations
+ Post-session behavior: Does the viewer continue using YouTube after watching, or leave the
+platform?
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 5 of 17
+
+
+04 — 4-TIER DISTRIBUTION MODEL
+When a video is uploaded, YouTube does NOT show it to everyone simultaneously. It tests the video in
+progressive tiers, measuring performance at each stage. Videos that perform well are promoted to the next
+tier.
+TIER 1: Core Audience
+Subscribers and regular viewers. The video is first shown to a small group already familiar with your
+channel. CTR and retention are measured. If strong signals are received, the video advances to the next
+tier. If not, the video stalls at this tier.
+TIER 2: Recent Viewers
+People who have watched your content recently but may not be subscribed. They share similar interest
+profiles. Engagement metrics (likes, comments, shares) are evaluated. Positive signals continue the
+expansion.
+TIER 3: Topic Match
+People who watch content in your topic area but do NOT know your channel. Clear packaging (thumbnail
++ title) wins at this tier. These viewers are interested in your topic but unfamiliar with your brand. Correct
+packaging + relevance = discovery.
+TIER 4: Adjacent Audiences
+People who watch related but different topics. This is the tier where videos go viral. It reaches viewers in
+adjacent interest areas. Reaching this tier requires strong performance in all three previous tiers.
+IMPLICATION FOR TYPE BEAT CHANNELS: In your early uploads, you must build a consistent and
+clearly defined niche to feed Tiers 1 and 2. For ENNY TANG, this means every video must speak the
+same visual language (Night Vision LUTs, consistent thumbnail style, uniform title format). The algorithm
+must be able to 'recognize' your channel and route it to the correct viewers.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 6 of 17
+
+
+05 — CTR: CLICK-THROUGH RATE STRATEGY
+CTR (Click-Through Rate) measures what percentage of people who see your thumbnail actually click and
+watch. It is the algorithm's first gatekeeper — if CTR is low, your video cannot reach its potential.
+THUMBNAIL BEST PRACTICES
+ One strong visual idea: Focus, not clutter
+ High contrast: Must be readable at small sizes on mobile screens
+ Minimal text: If any, no more than 3-4 words in bold font
+ Consistent brand style: A recognizable visual language across all videos
+ Mobile-first design: 70%+ of viewers are on mobile devices
+TITLE BEST PRACTICES
+ Keep titles under 60 characters (prevents truncation on mobile)
+ Formula: Keyword + curiosity trigger
+ Type beat title format: [FREE] Artist1 x Artist2 Type Beat - "Beat Name"
+ Do NOT use misleading titles — high CTR + low retention = algorithmic penalty
+CTR OPTIMIZATION PROCESS
+If CTR is below 3% within 48 hours of upload, test a new thumbnail and/or title. Use YouTube's Test &
+Compare feature to A/B test up to 3 different thumbnails per video. Spend 2 hours on your thumbnail and 2
+minutes on tags — NOT the reverse. Tags have minimal impact; 95% of discovery is driven by thumbnail,
+title, and retention.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 7 of 17
+
+
+06 — RETENTION: THE ART OF KEEPING VIEWERS
+Retention measures how much of your video viewers actually watch. In 2026, efficiency matters more than
+length: a short video watched to 100% completion with high satisfaction sends a much stronger signal than
+a 20-minute video with only 40% retention.
+RETENTION STRATEGY FOR TYPE BEAT VIDEOS
+Type beat videos are primarily consumed as music listening content and have unique retention patterns
+compared to other content types. In the first few seconds of the beat, lead with the most attention-grabbing
+part of the melody or rhythm. Place your producer tag at the 3-5 second mark, not at the very beginning.
+The beat's natural structure (intro, verse, chorus, bridge) creates organic pattern interrupts — which is
+exactly what YouTube rewards.
+THE FIRST 30 SECONDS RULE
+Most viewers decide whether to stay or leave within the first 30 seconds. For type beats, this means
+placing the catchiest part of the beat (usually the chorus melody) in the first few seconds. Cut long ambient
+intros.
+WEEKLY METRIC TARGET: Each week, set one specific metric goal. Example: 'Increase first-30-second
+retention from 62% to 70%.' Then design the intro of your next two videos specifically to hit that target.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 8 of 17
+
+
+07 — SATISFACTION SIGNALS (2025-2026 Game
+Changer)
+The most significant part of YouTube's 2025-2026 transformation is the shift from raw metrics to viewer
+satisfaction. The platform no longer measures only how much was watched, but whether the viewer felt
+their time was well spent.
+HOW SATISFACTION IS MEASURED
+Post-Watch Surveys
+YouTube sends millions of surveys monthly asking 'Was this video worth your time?' The responses are
+used to train ML models that predict satisfaction for all users, not just survey respondents.
+Repeat Views
+If a viewer re-watches a video, it is a strong satisfaction signal. This is especially relevant for type beats:
+producers and rappers repeatedly listen to beats they like.
+'Not Interested' Clicks
+Carries strong negative weight. If viewers are actively avoiding your content, this is a serious penalty
+signal.
+Comment Sentiment Analysis
+The tone and sentiment of comments now directly influence recommendations. Positive comments =
+positive signal.
+Post-Session Behavior
+Does the viewer continue using YouTube after watching your video, or do they leave the platform
+entirely?
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 9 of 17
+
+
+08 — YOUTUBE SEO: SEARCH ENGINE
+OPTIMIZATION
+YouTube is part of the world's largest search engine (Google) and is itself the second-largest search
+engine. For type beat channels, SEO is the primary discovery method because viewers actively search for
+terms like '[artist name] type beat'.
+KEYWORD RESEARCH
+ YouTube search bar autocomplete: If suggestions appear when you type 'Travis Scott type', search
+volume exists for that term
+ Google Trends: Track artist popularity trends over time
+ Long-tail keywords: Specific queries like 'dark trap type beat 2026' offer lower competition
+ The JETBOX SEO engine's 9-tier, 117-artist system is already aligned with this principle
+METADATA OPTIMIZATION
+Title format: [FREE] Artist1 x Artist2 Type Beat - "Beat Name" | Genre + Year
+Description: Place primary keywords in the first 2-3 lines. Include contact information, license types, and
+social media links. Target a minimum of 200+ words.
+Tags: Have minimal impact but include main artist names and genre labels. Primary focus should remain
+on title and description.
+Captions/Subtitles: Verify automatic subtitle accuracy — YouTube reads captions to understand content.
+2026 SEO UPDATE
+YouTube now performs deep content analysis — visuals, audio, and speech. This means the words used
+in your title should also be present within the video itself (e.g., spoken or displayed). YouTube has become
+significantly better at understanding what a video is 'about' and matching it to relevant interest clusters.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 10 of 17
+
+
+09 — YOUTUBE SHORTS ALGORITHM
+The Shorts algorithm operates entirely differently from long-form content. In long-form, viewers choose
+what to watch; in Shorts, they discover content by swiping through a feed. Shorts has reached 200 billion
+daily views.
+SHORTS RANKING FACTORS
+ Swipe vs. Watch Rate: The #1 metric. If viewers instantly swipe past, the video fails.
+ Completion Rate: Was the video watched to the end?
+ Loop Rate: Did the video auto-replay and get re-watched?
+ Engagement: Likes, comments, shares, and especially new subscribers gained from the Short
+ Search Relevance (NEW in 2026): Shorts-specific search filters were added — title and description
+optimization is now critical for Shorts
+SHORTS STRATEGY FOR TYPE BEAT CHANNELS
+Use Shorts as a discovery tool, NOT as your primary revenue channel. Package the best 15-30 seconds
+of a beat as a Short and link to the full-length video in the description. Behind-the-scenes beat-making
+clips, hook/melody teasers, and beat-switch moments perform well. In 2026, Shorts expanded to 3
+minutes, providing more room for storytelling.
+SHORTS → LONG-FORM FUNNEL: Shorts provides discoverability; long-form videos provide deep
+engagement and session duration. When this funnel works correctly, Shorts serves as an entry point and
+long-form content builds loyal viewers. Shorts monetization remains low ($0.01-0.06 per 1K views); real
+revenue comes from long-form.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 11 of 17
+
+
+10 — OPPORTUNITY WINDOW FOR SMALL
+CHANNELS
+In 2026, small channels have a genuine advantage. The algorithm prioritizes viewer response over
+subscriber count or upload history. YouTube introduced the 'Hype' feature for channels with 500 to
+500,000 subscribers: fans can Hype a new video to push it into a special ranking panel and earn a
+temporary boost in the Explore feed.
+EVIDENCE FOR SMALL CHANNELS
+ Channels with fewer than 1,000 subscribers account for 30% of the top 100 videos in niche trending
+topics
+ New channels showing strong CTR and retention in their first videos are tested with broad audiences
+within days
+ YouTube is actively creating pathways for new channels to find their audience faster
+ Hype feature (500-500K subscribers): Fan-driven support to bypass algorithmic barriers within the
+first 7 days of upload
+MINIMUM VIDEO THRESHOLD: New channels should upload at least 20-30 videos before the algorithm
+can reliably recommend them. Uploading 5 videos and concluding 'the algorithm hates me' is incorrect —
+the algorithm simply does not KNOW you yet. Consistent publishing trains the subscription algorithm to
+keep informing your audience.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 12 of 17
+
+
+11 — DEDICATED STRATEGY FOR TYPE BEAT
+CHANNELS
+The type beat market exists at a unique intersection of the YouTube algorithm: content is search-heavy
+(users actively search for it), retention patterns are specific to music listening, and the target audience
+(US-based rappers and producers) is a well-defined demographic.
+ENNY TANG JETBOX PIPELINE ADVANTAGES
+ Consistent Visual Identity: Night Vision LUTs (RAGE preset: green tint, MELODIC preset: pink tint)
+create a recognizable brand across every video — making it easier for the algorithm to identify the
+channel's identity
+ SEO Engine: 9 tiers, 117 artists, automated title formatting — ensures every video targets the
+correct keywords
+ Human-in-the-Loop: No automatic uploads; every step requires human approval — maintains
+quality control and eliminates 'AI slop' risk
+ Consistent Format: Uniform title structure, visual style, and metadata format — provides the
+repeatability the algorithm rewards
+CHANNEL GROWTH PATH
+Phase 1: Foundation (0-30 Videos)
+Build consistency. Upload at least 3-5 beats per week. Use the same thumbnail style, title format, and
+LUTs. Allow the algorithm to learn your channel's identity. Analyze CTR and retention after every video.
+Phase 2: Momentum (30-100 Videos)
+Optimize based on data. Which artist names generate higher CTR? Which beat genres show better
+retention? Use Shorts to drive discovery traffic. Use playlists to increase session duration.
+Phase 3: Scaling (100+ Videos)
+The algorithm now knows your channel well. Tier 3-4 audience reach begins. Evergreen content (older
+beats) can resurface. Strengthen satisfaction signals through community engagement (reply to
+comments, community posts).
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 13 of 17
+
+
+12 — OPTIMAL UPLOAD TIMES (US MARKET)
+Timing directly affects the algorithm's initial evaluation of your video. Uploading at the right time ensures
+your video collects the best possible data from its first test pool. Poor timing can bury content regardless of
+quality.
+CORE RULE: Upload 2-3 Hours BEFORE Peak Viewing Hours. Uploading at peak time means you are
+already late. YouTube's servers need 2-3 hours to process the video (4K rendering, copyright checks,
+subtitle generation) and index it. The video should be fully ready for distribution by the time your viewers
+are most active.
+Day
+US Peak (EST)
+Upload Time (EST)
+Turkey Time (UTC+3)
+Monday
+5:00 PM - 9:00 PM
+2:00 PM - 3:00 PM
+10:00 PM - 11:00 PM
+Tuesday
+5:00 PM - 9:00 PM
+2:00 PM - 3:00 PM
+10:00 PM - 11:00 PM
+Wednesday
+5:00 PM - 9:00 PM
+2:00 PM - 3:00 PM
+10:00 PM - 11:00 PM
+Thursday*
+5:00 PM - 10:00 PM
+2:00 PM - 4:00 PM
+10:00 PM - 12:00 AM
+Friday*
+4:00 PM - 10:00 PM
+1:00 PM - 2:00 PM
+9:00 PM - 10:00 PM
+Saturday*
+12:00 PM - 8:00 PM
+9:00 AM - 10:00 AM
+5:00 PM - 6:00 PM
+Sunday
+12:00 PM - 8:00 PM
+9:00 AM - 10:00 AM
+5:00 PM - 6:00 PM
+* Highlighted days (Thursday-Saturday): Highest CPC (cost per click) and engagement in the US
+market. Type beat content is especially consumed during evening hours — rappers and producers work
+at night.
+ENNY TANG SPECIFIC RECOMMENDATION
+Primary Strategy: Weekdays (Tuesday-Friday), upload between 10:00 PM - 11:00 PM Turkey time. This
+corresponds to 2:00 PM - 3:00 PM EST, which is 2-3 hours before the evening peak. This timing captures
+both US coasts: East Coast evening and West Coast afternoon.
+Weekends: Saturday, upload at 5:00 PM - 6:00 PM Turkey time (9:00 AM - 10:00 AM EST) — the start of
+weekend long-form content consumption in the US.
+Shorts: Post 2-3 hours before or immediately after the main video. Target lunch break (US 12:00-2:00 PM
+= Turkey 8:00-10:00 PM) and evening (US 6:00-9:00 PM = Turkey 2:00-5:00 AM) windows.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 14 of 17
+
+
+13 — MYTHS VS. FACTS
+MYTH: 'Tags are very important'
+FACT: Tags have minimal impact. Thumbnail, title, and retention drive 95% of discovery. Spend 2
+hours on your thumbnail and 2 minutes on tags.
+MYTH: 'Longer videos always perform better'
+FACT: The right length depends on the idea's requirements. A 6-minute complete answer beats a
+20-minute padded video. Efficiency > length.
+MYTH: 'The algorithm is biased against small channels'
+FACT: Small channels are being tested more aggressively than ever. Channels under 1,000
+subscribers account for 30% of the top 100 in niche trending topics.
+MYTH: 'Never change the title or thumbnail'
+FACT: Strategic iteration is healthy. If CTR is below 3% after 48 hours, test a new title/thumbnail.
+MYTH: 'Clickbait works'
+FACT: It may generate initial clicks, but if viewers leave early, retention drops and the algorithm
+detects this. Misleading thumbnails erode trust and visibility over time.
+MYTH: 'You must upload every day'
+FACT: Quality matters more than quantity. Too much low-quality content lowers viewer
+satisfaction — a negative signal for the algorithm. Find a sustainable rhythm.
+MYTH: 'A video must gain traction within one day or it is dead'
+FACT: YouTube does not stop promoting videos after one day. Videos can gain momentum days,
+weeks, or even months later — as long as watch time and engagement continue, they can
+resurface.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 15 of 17
+
+
+14 — WEEKLY ACTION PLAN
+The following plan provides a repeatable weekly workflow for the ENNY TANG channel's first 90 days.
+Repeat this cycle every week.
+MONDAY — Production + Analysis
+Review the previous week's YouTube Analytics: CTR, retention, traffic sources. Identify which videos
+performed well and why. Begin beat production — prepare the first beats of the week.
+TUESDAY — Upload Day #1
+Process the first beat through the JETBOX pipeline: metadata, artwork, LUT color grading, SEO
+generation. Upload at 10:00 PM Turkey time (2:00 PM EST). Monitor engagement for the first 2 hours after
+upload.
+WEDNESDAY — Community + Shorts
+Reply to comments on the previous day's upload. Prepare a short Shorts clip from the beat. Post a
+community update.
+THURSDAY — Upload Day #2
+Upload the second beat. Thursday has high CPC in the US market. Run a thumbnail A/B test.
+FRIDAY — Upload Day #3 + Shorts
+Upload the third beat (entertainment/gaming audiences are active on Fridays). Create a Short from the
+week's best-performing beat.
+SATURDAY — Additional Upload + Analysis
+Optional 4th beat upload (5:00 PM Turkey time = 9:00 AM EST). Conduct weekly performance
+comparison. Plan artist/genre targets for next week.
+SUNDAY — Strategy + Rest
+Summarize the week's metrics. Decide which artist tiers to target next week. Scan trends. Rest.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 16 of 17
+
+
+15 — REFERENCES
+[1] vidIQ (2026) — 'Understanding YouTube Algorithm' — vidiq.com/blog
+[2] Buffer (2025) — 'A Guide to the YouTube Algorithm' — buffer.com/resources
+[3] Sprout Social (2026) — 'The YouTube Algorithm: How It Works' — sproutsocial.com
+[4] Shopify (2026) — 'The YouTube Algorithm: How It Works' — shopify.com/blog
+[5] SocialBee (2025-2026) — 'How Does the YouTube Algorithm Work' — socialbee.com/blog
+[6] Navigate Video (2026) — 'How Does the YouTube Algorithm Work' — navigatevideo.com
+[7] Uppbeat (2026) — 'The YouTube Algorithm: How It Works' — uppbeat.io/blog
+[8] PostEverywhere (2026) — 'How the YouTube Algorithm Works: 5 Systems' — posteverywhere.ai
+[9] ScaleLab (2026) — 'Best Time to Post on YouTube' — scalelab.com
+[10] Metricool (2026) — 'YouTube Algorithm 2025' — metricool.com
+[11] SocialPilot (2026) — 'Best Time to Post on YouTube' — socialpilot.co
+[12] InfluencerDB (2026) — 'YouTube Algorithm Guide 2026' — influencerdb.net
+[13] YouTube Toolshub (2026) — 'Best Time to Upload to YouTube 2026' — youtubetoolshub.com
+[14] RecurPost (2026) — 'Best Time to Post on YouTube' — recurpost.com
+[15] YTShark (2026) — 'How the YouTube Algorithm Works: 5 Systems Explained' — ytshark.com
+[16] Promozle (2026) — 'YouTube Algorithm for New Channels' — promozle.com
+[17] BeatsToRapOn (2025) — 'Ultimate YouTube Music Algorithm Guide' — beatstorapon.com
+[18] IQFluence (2026) — 'Best Time to Post on YouTube' — iqfluence.io
+ ENNY TANG | @enny-tang
+ This document was prepared based on YouTube's official disclosures and the most reputable industry sources.
+ENNY TANG — YouTube Algorithm 2026 Guide
+Page 17 of 17
