@@ -555,57 +555,122 @@ function LutTunerDrawer({ params, onChange, onReset, presetName }) {
 
 // ─── CROP SELECTOR ───────────────────────────────────
 // Drag-based 1:1 square crop overlay on artwork image
-function CropSelector({ imgUrl, cropRect, onChange }) {
+// Shared clamp — keeps the square box fully inside the image.
+// size = box side as fraction of the image's SMALLER dimension (matches backend).
+export function clampCrop(r, nw, nh) {
+  if (!nw || !nh) return { x: 0, y: 0, size: Math.min(1, Math.max(0.05, r?.size ?? 1)) };
+  const minDim = Math.min(nw, nh);
+  const size   = Math.min(1, Math.max(0.05, r?.size ?? 1));
+  const maxX   = Math.max(0, 1 - (size * minDim) / nw);
+  const maxY   = Math.max(0, 1 - (size * minDim) / nh);
+  return {
+    x: Math.min(maxX, Math.max(0, r?.x ?? 0)),
+    y: Math.min(maxY, Math.max(0, r?.y ?? 0)),
+    size,
+  };
+}
+
+// Centered square of the given size
+export function centeredCrop(size, nw, nh) {
+  if (!nw || !nh) return { x: 0, y: 0, size };
+  const minDim = Math.min(nw, nh);
+  return clampCrop({
+    x: (1 - (size * minDim) / nw) / 2,
+    y: (1 - (size * minDim) / nh) / 2,
+    size,
+  }, nw, nh);
+}
+
+function CropSelector({ imgUrl, cropRect, onChange, onNatSize }) {
   const containerRef = useRef(null);
+  const imgRef       = useRef(null);
   const dragRef      = useRef(null);
-  const [natSize, setNatSize] = useState({ w: 1, h: 1 });
+  const [natSize, setNatSize] = useState({ w: 0, h: 0 });
+
+  // Live values for the drag handlers (avoids stale-closure drift)
+  const rectRef = useRef(cropRect);
+  rectRef.current = cropRect;
+  const natRef  = useRef(natSize);
+  natRef.current = natSize;
 
   const { x: cx = 0, y: cy = 0, size: csz = 1 } = cropRect;
 
-  const onImgLoad = (e) => setNatSize({ w: e.target.naturalWidth, h: e.target.naturalHeight });
+  const readNatSize = () => {
+    const el = imgRef.current;
+    if (el && el.naturalWidth && el.naturalHeight) {
+      setNatSize((p) =>
+        p.w === el.naturalWidth && p.h === el.naturalHeight
+          ? p
+          : { w: el.naturalWidth, h: el.naturalHeight });
+    }
+  };
+
+  // Cached images may never fire onLoad → read size directly after mount / src change
+  useEffect(() => {
+    setNatSize({ w: 0, h: 0 });
+    const el = imgRef.current;
+    if (el && el.complete) readNatSize();
+  }, [imgUrl]);
+
+  // Report natural size upward (parent needs it for zoom + reset math)
+  useEffect(() => {
+    if (natSize.w && natSize.h && onNatSize) onNatSize(natSize);
+  }, [natSize.w, natSize.h]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-clamp whenever the image size or the zoom changes, so the box on screen
+  // is never outside the image (backend clamps too → they must agree).
+  useEffect(() => {
+    if (!natSize.w || !natSize.h) return;
+    const c = clampCrop(cropRect, natSize.w, natSize.h);
+    if (Math.abs(c.x - cx) > 1e-6 || Math.abs(c.y - cy) > 1e-6 || Math.abs(c.size - csz) > 1e-6) {
+      onChange(c);
+    }
+  }, [natSize.w, natSize.h, cx, cy, csz]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startDrag = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     const rect = containerRef.current.getBoundingClientRect();
-    dragRef.current = { mx: e.clientX, my: e.clientY, cx, cy, rw: rect.width, rh: rect.height };
+    const r0 = rectRef.current;
+    dragRef.current = { mx: e.clientX, my: e.clientY, cx: r0.x ?? 0, cy: r0.y ?? 0,
+                        rw: rect.width, rh: rect.height };
 
     const onMove = (ev) => {
-      const { mx, my, cx: ox, cy: oy, rw, rh } = dragRef.current;
-      const { w: nw, h: nh } = natSize;
-      const minDim = Math.min(nw, nh);
-      // fraction of image per container pixel
-      const fx = (ev.clientX - mx) / rw;
-      const fy = (ev.clientY - my) / rh;
-      const maxX = Math.max(0, 1 - csz * minDim / nw);
-      const maxY = Math.max(0, 1 - csz * minDim / nh);
-      onChange({
-        x: Math.max(0, Math.min(maxX, ox + fx)),
-        y: Math.max(0, Math.min(maxY, oy + fy)),
-        size: csz,
-      });
+      const d = dragRef.current;
+      if (!d) return;
+      const { w: nw, h: nh } = natRef.current;
+      if (!nw || !nh) return;
+      // container width/height == full displayed image → px delta ⇒ image fraction
+      const fx = (ev.clientX - d.mx) / d.rw;
+      const fy = (ev.clientY - d.my) / d.rh;
+      onChange(clampCrop(
+        { x: d.cx + fx, y: d.cy + fy, size: rectRef.current.size },
+        nw, nh
+      ));
     };
     const onUp = () => {
       dragRef.current = null;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
 
   // Visual: compute crop box as % of displayed container
   const { w: nw, h: nh } = natSize;
-  const minDim   = Math.min(nw, nh);
-  const boxW_pct = (csz * minDim / nw) * 100;
-  const boxH_pct = (csz * minDim / nh) * 100;
-  const boxL_pct = cx * 100;
-  const boxT_pct = cy * 100;
+  const ready    = nw > 0 && nh > 0;
+  const minDim   = ready ? Math.min(nw, nh) : 1;
+  const boxW_pct = ready ? (csz * minDim / nw) * 100 : 100;
+  const boxH_pct = ready ? (csz * minDim / nh) * 100 : 100;
+  const boxL_pct = ready ? cx * 100 : 0;
+  const boxT_pct = ready ? cy * 100 : 0;
 
   return (
     <div ref={containerRef}
-      style={{ position:"relative", cursor:"crosshair", userSelect:"none", lineHeight:0 }}
-      onMouseDown={startDrag}>
-      <img src={imgUrl} alt="crop" onLoad={onImgLoad}
+      style={{ position:"relative", cursor:"move", userSelect:"none", touchAction:"none", lineHeight:0 }}
+      onPointerDown={startDrag}>
+      <img ref={imgRef} src={imgUrl} alt="crop" onLoad={readNatSize}
         style={{ width:"100%", display:"block", pointerEvents:"none" }} />
       {/* Dark overlay — 4 regions around crop box */}
       {[
@@ -705,6 +770,32 @@ function ProcessPanel({
     ? `${API}/artworks/image/${vibeTab}/${encodeURIComponent(filename)}`
     : null;
 
+  // Which pane is visible — independent from whether the crop is APPLIED.
+  // (Previously the tab itself was the apply-flag, so going back to PREVIEW
+  //  silently threw the user's crop away on render.)
+  const [cropView, setCropView] = useState(false);
+  const [natSize, setNatSize]   = useState({ w: 0, h: 0 });
+
+  const handleNatSize = (n) => {
+    setNatSize(n);
+    setCropRect((r) =>
+      (r.size >= 0.999 && !r.x && !r.y)
+        ? centeredCrop(1, n.w, n.h)          // fresh artwork → centered square
+        : clampCrop(r, n.w, n.h));
+  };
+
+  // Zoom around the box CENTER instead of its top-left corner
+  const handleZoom = (newSize) => {
+    setCropRect((r) => {
+      const { w: nw, h: nh } = natSize;
+      if (!nw || !nh) return { ...r, size: newSize };
+      const minDim = Math.min(nw, nh);
+      const dW = ((r.size - newSize) * minDim) / nw;
+      const dH = ((r.size - newSize) * minDim) / nh;
+      return clampCrop({ x: r.x + dW / 2, y: r.y + dH / 2, size: newSize }, nw, nh);
+    });
+  };
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       {/* Header */}
@@ -744,6 +835,7 @@ function ProcessPanel({
                     onVibeTab={setArtVibeTab}
                     selected={selectedArtwork} onSelect={(rel) => {
                       setSelectedArtwork(rel);
+                      setNatSize({ w:0, h:0 });
                       setCropRect({ x:0, y:0, size:1 }); // reset crop on new artwork
                     }} />
                 )}
@@ -753,18 +845,23 @@ function ProcessPanel({
               <div>
                 {/* Toggle: PREVIEW | CROP 1:1 */}
                 <div style={{display:"flex",gap:4,marginBottom:8}}>
-                  <button className={`chip ${!cropEnabled?"active":""}`} style={{flex:1}}
-                    onClick={() => setCropEnabled(false)}>PREVIEW</button>
-                  <button className={`chip ${cropEnabled?"active":""}`} style={{flex:1}}
-                    onClick={() => setCropEnabled(true)}>CROP 1:1</button>
+                  <button className={`chip ${!cropView?"active":""}`} style={{flex:1}}
+                    onClick={() => setCropView(false)}>
+                    PREVIEW{cropEnabled ? " ·" : ""}
+                  </button>
+                  <button className={`chip ${cropView?"active":""}`} style={{flex:1}}
+                    onClick={() => { setCropView(true); setCropEnabled(true); }}>
+                    CROP 1:1{cropEnabled ? " ●" : ""}
+                  </button>
                 </div>
 
-                {cropEnabled ? (
+                {cropView ? (
                   /* ── CROP MODE ── */
                   <div>
                     {rawArtUrl ? (
                       <CropSelector imgUrl={rawArtUrl}
-                        cropRect={cropRect} onChange={setCropRect} />
+                        cropRect={cropRect} onChange={setCropRect}
+                        onNatSize={handleNatSize} />
                     ) : (
                       <div className="lut-preview-empty">SELECT ARTWORK FIRST</div>
                     )}
@@ -775,13 +872,27 @@ function ProcessPanel({
                         <input type="range" className="lut-slider"
                           min={0.2} max={1} step={0.01}
                           value={cropRect.size}
-                          onChange={(e) => setCropRect(r => ({...r, size:parseFloat(e.target.value)}))} />
+                          onChange={(e) => handleZoom(parseFloat(e.target.value))} />
                         <span className="slider-val">{Math.round(cropRect.size*100)}%</span>
                       </div>
-                      <button className="btn btn-sec" style={{width:"100%",marginTop:2}}
-                        onClick={() => setCropRect({ x:0, y:0, size:1 })}>
-                        RESET CROP
-                      </button>
+                      <div style={{display:"flex",gap:4,marginTop:2}}>
+                        <button className="btn btn-sec" style={{flex:1}}
+                          onClick={() => {
+                            setCropEnabled(true);
+                            setCropRect(centeredCrop(1, natSize.w, natSize.h));
+                          }}>
+                          RESET CROP
+                        </button>
+                        <button className={`btn ${cropEnabled ? "btn-cta" : "btn-sec"}`} style={{flex:1}}
+                          onClick={() => setCropEnabled(!cropEnabled)}>
+                          {cropEnabled ? "CROP: ON" : "CROP: OFF"}
+                        </button>
+                      </div>
+                      <div className="f-data" style={{fontSize:9,color:"var(--txt-dim)",marginTop:6,letterSpacing:".06em"}}>
+                        {cropEnabled
+                          ? "1:1 CROP APPLIED TO PREVIEW + RENDER"
+                          : "CROP OFF — RENDER USES FULL ARTWORK"}
+                      </div>
                     </div>
                   </div>
                 ) : (

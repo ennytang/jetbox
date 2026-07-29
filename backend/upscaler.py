@@ -54,6 +54,37 @@ def _multi_pass_lanczos(img: Image.Image, target_w: int, target_h: int) -> Image
     return img.resize((target_w, target_h), Image.LANCZOS)
 
 
+def crop_square(img: Image.Image, crop: dict | None) -> Image.Image:
+    """
+    SINGLE SOURCE OF TRUTH for 1:1 crop math.
+    Every path (preview / render / thumbnail) must use this so the
+    frame the user sees in the crop tool is exactly the frame that renders.
+
+    crop = {"x": 0..1, "y": 0..1, "size": 0..1}
+      x, y  : top-left of the box as a fraction of image width / height
+      size  : box side as a fraction of the image's SMALLER dimension
+    If crop is None -> centered square crop (full smaller dimension).
+    """
+    iw, ih = img.size
+    base_dim = min(iw, ih)
+
+    if not crop:
+        left = (iw - base_dim) // 2
+        top = (ih - base_dim) // 2
+        return img.crop((left, top, left + base_dim, top + base_dim))
+
+    csz = float(crop.get("size", 1) or 1)
+    csz = max(0.05, min(csz, 1.0))
+    box_px = max(1, min(int(round(base_dim * csz)), base_dim))
+
+    left = int(round(iw * float(crop.get("x", 0) or 0)))
+    top = int(round(ih * float(crop.get("y", 0) or 0)))
+    left = max(0, min(left, iw - box_px))
+    top = max(0, min(top, ih - box_px))
+
+    return img.crop((left, top, left + box_px, top + box_px))
+
+
 def upscale_artwork(
     img: Image.Image,
     quality: str = "2K",
@@ -152,21 +183,12 @@ def upscale_for_render(
         PIL Image at full video frame resolution (2560Ã-1440 or 1920Ã-1080)
     """
     img = Image.open(img_path).convert("RGB")
-    iw, ih = img.size
 
-    # Apply crop if provided
-    if crop:
-        cx  = float(crop.get("x",    0))
-        cy  = float(crop.get("y",    0))
-        csz = float(crop.get("size", 1))
-        base_dim = min(iw, ih)
-        box_px = max(50, min(int(base_dim * csz), base_dim))
-        left = max(0, min(int(iw * cx), iw - box_px))
-        top  = max(0, min(int(ih * cy), ih - box_px))
-        img = img.crop((left, top, left + box_px, top + box_px))
+    # Apply crop (None -> centered square) using the shared crop math
+    img = crop_square(img, crop)
 
-    # Upscale to square
-    art = upscale_artwork(img, quality=quality, square_crop=True)
+    # Already square now -> no extra center crop
+    art = upscale_artwork(img, quality=quality, square_crop=False)
 
     # Compose into video frame
     return compose_video_frame(art, quality=quality)

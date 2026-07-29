@@ -309,17 +309,10 @@ def lut_preview():
 
         img = Image.open(full_path).convert('RGB')
 
-        # 1. Apply 1:1 crop if requested
+        # 1. Apply 1:1 crop if requested — same math as the renderer
         if crop:
-            cx  = float(crop.get("x",    0))
-            cy  = float(crop.get("y",    0))
-            csz = float(crop.get("size", 1))
-            iw, ih = img.size
-            base_dim = min(iw, ih)
-            box_px   = max(50, min(int(base_dim * csz), base_dim))
-            left     = max(0, min(int(iw * cx), iw - box_px))
-            top      = max(0, min(int(ih * cy), ih - box_px))
-            img = img.crop((left, top, left + box_px, top + box_px))
+            from upscaler import crop_square
+            img = crop_square(img, crop)
             img = img.resize((1080, 1080), Image.LANCZOS)
 
         # 2. Resize for preview speed
@@ -666,10 +659,11 @@ def render_video():
             spec = QUALITY_SPECS.get(quality, QUALITY_SPECS["HD"])
             fw, fh = spec["frame"]
 
-            # Load and upscale artwork to square
-            from upscaler import upscale_artwork
+            # Load, apply the user's 1:1 crop (None -> centered), then upscale
+            from upscaler import upscale_artwork, crop_square
             img_raw = Image.open(artwork_full).convert("RGB")
-            img_upscaled = upscale_artwork(img_raw, quality=quality, square_crop=True)
+            img_raw = crop_square(img_raw, crop)   # BUGFIX: crop was ignored here
+            img_upscaled = upscale_artwork(img_raw, quality=quality, square_crop=False)
 
             # Apply LUT processing  (lut_process_full already imported at top from lut_tuner)
             tuner_params = custom_presets[lut_preset_name]

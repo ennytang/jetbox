@@ -179,22 +179,8 @@ def crop_and_compose(
     Returns:
         1920x1080 image with cropped square (1080x1080) centered on black background
     """
-    iw, ih = img.size
-    
-    # Calculate crop box in pixels
-    base_dim = min(iw, ih)
-    box_px = int(base_dim * crop_size)
-    box_px = max(50, min(box_px, min(iw, ih)))  # Clamp
-    
-    left = int(iw * crop_x)
-    top = int(ih * crop_y)
-    
-    # Clamp to image bounds
-    left = max(0, min(left, iw - box_px))
-    top = max(0, min(top, ih - box_px))
-    
-    # Crop square
-    cropped = img.crop((left, top, left + box_px, top + box_px))
+    from upscaler import crop_square as _crop_square
+    cropped = _crop_square(img, {"x": crop_x, "y": crop_y, "size": crop_size})
     
     # Resize to 1080x1080
     square = cropped.resize((1080, 1080), Image.LANCZOS)
@@ -214,18 +200,8 @@ def crop_and_compose_thumbnail(
     crop_size: float,
 ) -> Image.Image:
     """Same as crop_and_compose but for 1280x720 thumbnail."""
-    iw, ih = img.size
-    
-    base_dim = min(iw, ih)
-    box_px = int(base_dim * crop_size)
-    box_px = max(50, min(box_px, min(iw, ih)))
-    
-    left = int(iw * crop_x)
-    top = int(ih * crop_y)
-    left = max(0, min(left, iw - box_px))
-    top = max(0, min(top, ih - box_px))
-    
-    cropped = img.crop((left, top, left + box_px, top + box_px))
+    from upscaler import crop_square as _crop_square
+    cropped = _crop_square(img, {"x": crop_x, "y": crop_y, "size": crop_size})
     square = cropped.resize((720, 720), Image.LANCZOS)
     
     frame = Image.new('RGB', (1280, 720), (0, 0, 0))
