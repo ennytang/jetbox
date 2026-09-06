@@ -5,6 +5,33 @@ import { createPortal } from "react-dom";
 
 const API = "/api";
 
+// ─── JOB POLLING — /api/render, /api/upload, /api/schedule artik
+// senkron degil; 202 {job_id} donuyor. Bu helper /api/jobs/<id>'i
+// bitene kadar yoklar ve gercek ilerleme + sonucu dondurur. ───
+function pollJob(jobId, onProgress, intervalMs = 900) {
+  return new Promise((resolve, reject) => {
+    const tick = async () => {
+      let job;
+      try {
+        const r = await fetch(`${API}/jobs/${jobId}`);
+        job = await r.json();
+      } catch (e) {
+        reject(new Error(e?.message || "Sunucuya ulaşılamadı"));
+        return;
+      }
+      if (job.error && !job.status) { reject(new Error(job.error)); return; }
+      if (typeof job.progress === "number") onProgress?.(job.progress, job.message);
+      if (job.status === "done") { resolve(job.result); return; }
+      if (job.status === "failed") {
+        reject(new Error(job.error || job.result?.error || "İşlem başarısız"));
+        return;
+      }
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+}
+
 // ─── KEYS ───────────────────────────────────────────
 const KEYS = ["Cm","C#m","Dm","D#m","Em","Fm","F#m","Gm","G#m","Am","A#m","Bm",
               "C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -721,6 +748,66 @@ function CropSelector({ imgUrl, cropRect, onChange, onNatSize }) {
 }
 
 // ─── QUALITY MODAL ───────────────────────────────────
+// ─── ERROR BANNER — panel ici kalici hata gostergesi ──
+function ErrorBanner({ message, onDismiss }) {
+  if (!message) return null;
+  return (
+    <div style={{
+      display:"flex", alignItems:"flex-start", gap:8,
+      background:"rgba(224,85,85,.12)", border:"1px solid rgba(224,85,85,.45)",
+      borderRadius:4, padding:"8px 10px", marginBottom:10,
+    }}>
+      <span style={{color:"#e05555", fontSize:13, lineHeight:1}}>⚠</span>
+      <span style={{flex:1, fontFamily:"var(--font-data)", fontSize:10.5,
+        color:"#ffb4b4", lineHeight:1.6, wordBreak:"break-word"}}>{message}</span>
+      {onDismiss && (
+        <button onClick={onDismiss} className="btn-icon"
+          style={{fontSize:13, lineHeight:1, color:"#e05555"}}>×</button>
+      )}
+    </div>
+  );
+}
+
+// ─── TOAST STACK — gecici bildirimler (basari/hata), sag-alt ──
+function ToastStack({ toasts, onDismiss }) {
+  if (!toasts.length) return null;
+  const COLORS = {
+    success: { bg: "rgba(154,255,98,.12)", brd: "rgba(154,255,98,.5)", fg: "#9AFF62" },
+    error:   { bg: "rgba(224,85,85,.14)",  brd: "rgba(224,85,85,.55)", fg: "#ff8c8c" },
+    info:    { bg: "rgba(227,239,38,.10)", brd: "rgba(227,239,38,.4)", fg: "var(--accent)" },
+  };
+  return (
+    <div style={{
+      position:"fixed", right:16, bottom:44, zIndex:900,
+      display:"flex", flexDirection:"column", gap:8, width:340, maxWidth:"calc(100vw - 32px)",
+    }}>
+      {toasts.map((t) => {
+        const c = COLORS[t.type] || COLORS.info;
+        return (
+          <div key={t.id} style={{
+            background:"var(--bg-panel)", border:`1px solid ${c.brd}`,
+            borderLeft:`3px solid ${c.fg}`, borderRadius:4, padding:"10px 12px",
+            boxShadow:"0 6px 20px rgba(0,0,0,.35)", display:"flex", flexDirection:"column", gap:6,
+          }}>
+            <div style={{display:"flex", alignItems:"flex-start", gap:8}}>
+              <span style={{flex:1, fontFamily:"var(--font-data)", fontSize:10.5,
+                color:c.fg, lineHeight:1.6, wordBreak:"break-word"}}>{t.msg}</span>
+              <button onClick={() => onDismiss(t.id)} className="btn-icon"
+                style={{fontSize:13, lineHeight:1, color:c.fg, flexShrink:0}}>×</button>
+            </div>
+            {t.actionLabel && (
+              <button className="btn-ghost" style={{fontSize:9, alignSelf:"flex-start"}}
+                onClick={() => { t.onAction?.(); onDismiss(t.id); }}>
+                {t.actionLabel}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function QualityModal({ onSelect }) {
   const [remember, setRemember] = useState(false);
   const opts = [
@@ -772,6 +859,7 @@ function ProcessPanel({
   onGenerateSeo, generating,
   onRender, rendering, renderResult, renderProgress = 0,
   artist1, artist2, beatName, bpm, beatKey, vibe, mood, locked,
+  seoError, renderError,
 }) {
   // URL for the raw artwork (to display in crop selector)
   const [vibeTab, filename] = selectedArtwork ? selectedArtwork.split("/") : [null, null];
@@ -822,6 +910,7 @@ function ProcessPanel({
 
       {/* Body */}
       <div className="panel-body">
+        <ErrorBanner message={seoError || renderError} />
         {!locked ? (
           <div className="awaiting-signal">
             <div className="awaiting-signal-icon">◈</div>
@@ -1151,8 +1240,9 @@ function CustomCalendar({ value, onChange }) {
 // Single modal: Publish Now (instant) or Schedule (future)
 function PublishModal({ onClose, onPublishNow, onSchedule,
   date, onDate, hour, onHour, min, onMin,
-  privacy, onPrivacy, deploying
+  privacy, onPrivacy, deploying, seoData, thumbnailUrl,
 }) {
+  const [confirmed, setConfirmed] = useState(false);
   const today = new Date();
   const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
   const nowHour = today.getHours();
@@ -1182,6 +1272,43 @@ function PublishModal({ onClose, onPublishNow, onSchedule,
           <button className="btn-icon" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
+
+          {/* Publish ozeti — yanlis metadata ile yanlislikla yayinlamayi onler */}
+          <div style={{
+            display:"flex", gap:10, marginBottom:14, padding:10,
+            background:"rgba(0,0,0,.2)", border:"1px solid var(--brd-idle)", borderRadius:4,
+          }}>
+            {thumbnailUrl ? (
+              <img src={thumbnailUrl} alt="thumbnail"
+                style={{width:64, height:64, objectFit:"cover", borderRadius:3, flexShrink:0}} />
+            ) : (
+              <div style={{width:64, height:64, flexShrink:0, borderRadius:3,
+                background:"rgba(255,255,255,.04)", display:"flex", alignItems:"center",
+                justifyContent:"center", fontSize:8, color:"var(--txt-dim)", textAlign:"center"}}>
+                NO THUMB
+              </div>
+            )}
+            <div style={{flex:1, minWidth:0}}>
+              <div style={{fontFamily:"var(--font-hud)", fontSize:11.5, color:"var(--txt-hi)",
+                lineHeight:1.4, marginBottom:4, wordBreak:"break-word"}}>
+                {seoData?.title || "(başlık yok)"}
+              </div>
+              <div style={{fontFamily:"var(--font-data)", fontSize:9, color:"var(--txt-dim)",
+                lineHeight:1.5, marginBottom:3, maxHeight:32, overflow:"hidden"}}>
+                {(seoData?.description || "").slice(0, 140)}
+                {(seoData?.description || "").length > 140 ? "…" : ""}
+              </div>
+              <div style={{fontFamily:"var(--font-data)", fontSize:9, color:"var(--txt-dim)"}}>
+                {(seoData?.tags || []).length} etiket
+              </div>
+            </div>
+          </div>
+          <label style={{display:"flex", alignItems:"center", gap:6, marginBottom:14,
+            cursor:"pointer", fontFamily:"var(--font-data)", fontSize:10, color:"var(--txt-dim)"}}>
+            <input type="checkbox" checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)} />
+            Başlık, açıklama ve etiketleri kontrol ettim
+          </label>
 
           {/* Privacy selector */}
           <div style={{marginBottom:14}}>
@@ -1237,13 +1364,13 @@ function PublishModal({ onClose, onPublishNow, onSchedule,
         <div className="modal-ftr" style={{flexDirection:"column",gap:8}}>
           {/* Primary: schedule */}
           <button className="btn btn-cta" style={{width:"100%"}}
-            disabled={!date || deploying}
+            disabled={!date || deploying || !confirmed}
             onClick={() => onSchedule(effectiveHour)}>
             {deploying ? "TRANSMITTING..." : `📡 SCHEDULE — ${date||"SELECT DATE"} ${String(effectiveHour).padStart(2,"0")}:${String(min).padStart(2,"0")} TRT`}
           </button>
           {/* Secondary: publish now */}
           <button className="btn btn-sec" style={{width:"100%",fontSize:10}}
-            disabled={deploying}
+            disabled={deploying || !confirmed}
             onClick={onPublishNow}>
             {deploying ? "..." : "⚡ PUBLISH NOW (INSTANT)"}
           </button>
@@ -1336,7 +1463,12 @@ function OutputPanel({
   scheduleDate, setScheduleDate,
   scheduleHour, setScheduleHour, scheduleMin, setScheduleMin,
   onConfirmSchedule, privacy, setPrivacy,
+  deployError,
 }) {
+  const thumbFilename = renderResult?.thumbnail_path
+    ? renderResult.thumbnail_path.split(/[\\/]/).pop()
+    : null;
+  const thumbnailUrl = thumbFilename ? `${API}/output/${encodeURIComponent(thumbFilename)}` : null;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <div className="panel-header">
@@ -1347,6 +1479,8 @@ function OutputPanel({
       </div>
 
       <div className="panel-body" style={{display:"flex",flexDirection:"column",gap:0}}>
+
+        <ErrorBanner message={deployError} />
 
         {/* Analytics */}
         <AnalyticsFeed channelInfo={channelInfo} loading={analyticsLoading} />
@@ -1471,6 +1605,8 @@ function OutputPanel({
           min={scheduleMin} onMin={setScheduleMin}
           privacy={privacy} onPrivacy={setPrivacy}
           deploying={deploying}
+          seoData={seoData}
+          thumbnailUrl={thumbnailUrl}
         />
       )}
     </div>
@@ -1570,6 +1706,18 @@ function StatusBar({ beats, watcher, ffmpegVer, ytOk, lastAction }) {
 // ═══════════════════════════════════════════════════
 function App() {
 
+  // ─── FORM STATE PERSIST — sayfa yenilenince kaybolmasin ───
+  // (diger state init'lerinden once tanimlanmali; selectedArtwork/
+  //  selectedPreset/lutParams/METADATA hepsi bunu init'te okuyor)
+  const FORM_STATE_KEY = "jetbox_form_state";
+  const loadFormState = () => {
+    try {
+      const raw = localStorage.getItem(FORM_STATE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+  const initialForm = loadFormState();
+
   // ─── NAVIGATION ───
   const [activeTab, setActiveTab] = useState("beats");
 
@@ -1591,16 +1739,6 @@ function App() {
   const [tunerOpen, setTunerOpen]       = useState(false);
   const [previewUrl, setPreviewUrl]     = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-
-  // ─── FORM STATE PERSIST — sayfa yenilenince kaybolmasin ───
-  const FORM_STATE_KEY = "jetbox_form_state";
-  const loadFormState = () => {
-    try {
-      const raw = localStorage.getItem(FORM_STATE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-  };
-  const initialForm = loadFormState();
 
   // ─── METADATA ───
   const [artist1, setArtist1]           = useState(initialForm.artist1 || "");
@@ -1624,7 +1762,6 @@ function App() {
   const [renderResult, setRenderResult] = useState(null);
   const [rendering, setRendering]       = useState(false);
   const [renderProgress, setRenderProgress] = useState(0); // tahmini render %
-  const renderTimerRef = useRef(null);
 
   // ─── YOUTUBE ───
   const [ytStatus, setYtStatus]         = useState(null);
@@ -1640,7 +1777,6 @@ function App() {
   const [deployStatus, setDeployStatus] = useState({});
   const [deploying, setDeploying]       = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); // 0-100 tahmini %
-  const uploadTimerRef = useRef(null);
 
   // ─── SCHEDULE ───
   const [publishModalOpen, setPublishModalOpen] = useState(false);
@@ -1663,6 +1799,23 @@ function App() {
   };
   const [qualityModal, setQualityModal] = useState(false);
   const [renderQuality, setRenderQuality] = useState(loadQualityPref()?.quality || "HD");
+
+  // ─── TOASTS + INLINE HATA BANNER'LARI ──────────────
+  const [toasts, setToasts] = useState([]);
+  const dismissToast = useCallback((id) => {
+    setToasts((arr) => arr.filter((t) => t.id !== id));
+  }, []);
+  const pushToast = useCallback((t) => {
+    const id = Date.now() + Math.random();
+    const toast = { id, ttl: 6000, type: "info", ...t };
+    setToasts((arr) => [...arr, toast]);
+    if (toast.ttl) setTimeout(() => dismissToast(id), toast.ttl);
+  }, [dismissToast]);
+
+  const [seoError, setSeoError]         = useState(null);
+  const [renderError, setRenderError]   = useState(null);
+  const [deployError, setDeployError]   = useState(null);
+  const [ytAuthLoading, setYtAuthLoading] = useState(false);
 
   // ─── INIT ─────────────────────────────────────────
   useEffect(() => {
@@ -1856,13 +2009,17 @@ function App() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        setLastAction(`PREVIEW ERROR: ${err.error || r.status}`);
+        const msg = err.error || `HTTP ${r.status}`;
+        setLastAction(`PREVIEW ERROR: ${msg}`);
+        pushToast({ type: "error", msg: `Önizleme hatası: ${msg}` });
         return;
       }
       const blob = await r.blob();
       setPreviewUrl((old) => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(blob); });
       setLastAction("FILTER PREVIEW GENERATED");
-    } catch (e) { console.error("preview:", e); }
+    } catch (e) {
+      pushToast({ type: "error", msg: `Önizleme hatası: ${e?.message || "Ağ hatası"}` });
+    }
     finally { setLoadingPreview(false); }
   }, [selectedArtwork, selectedPreset, lutParams, cropEnabled, cropRect]);
 
@@ -1870,6 +2027,7 @@ function App() {
   const handleGenerateSeo = async () => {
     setGenerating(true);
     setSeoData(null);
+    setSeoError(null);
     try {
       const payload = {
         beat_name:  beatName,
@@ -1989,14 +2147,22 @@ ${imgBlock}
         // ───────────────────────────────────────────────────────
       } else if (d.error) {
         setLastAction(`SEO ERROR: ${d.error}`);
+        setSeoError(d.error);
+        pushToast({ type: "error", msg: `SEO oluşturma hatası: ${d.error}` });
       }
-    } catch (e) { console.error("SEO:", e); }
+    } catch (e) {
+      const msg = e?.message || "Ağ hatası";
+      setLastAction(`SEO ERROR: ${msg}`);
+      setSeoError(msg);
+      pushToast({ type: "error", msg: `SEO oluşturma hatası: ${msg}` });
+    }
     finally { setGenerating(false); }
   };
 
   // ─── RENDER MP4 — shows quality modal first (unless remembered) ──
   const handleRenderClick = () => {
     if (!selectedArtwork || !seoData) return;
+    setRenderError(null);
     const pref = loadQualityPref();
     if (pref?.remember && pref.quality) {
       handleRender(pref.quality);
@@ -2017,29 +2183,15 @@ ${imgBlock}
     handleRender(quality);
   };
 
-  // ── RENDER PROGRESS — tahmini ilerleme (upload bariyla ayni mantik) ──
-  const startRenderProgress = () => {
-    setRenderProgress(2);
-    if (renderTimerRef.current) clearInterval(renderTimerRef.current);
-    renderTimerRef.current = setInterval(() => {
-      setRenderProgress((prev) => {
-        if (prev >= 92) return 92; // gercek bitisi bekle
-        const remaining = 92 - prev;
-        return Math.min(92, prev + Math.max(1, Math.round(remaining * 0.14)));
-      });
-    }, 1500);
-  };
-  const stopRenderProgress = (success) => {
-    if (renderTimerRef.current) { clearInterval(renderTimerRef.current); renderTimerRef.current = null; }
-    setRenderProgress(success ? 100 : 0);
-  };
-
+  // ── RENDER — /api/render/mp4 artik 202 {job_id} donuyor; ──
+  // ── gercek ilerleme /api/jobs/<id> yoklamasindan gelir. ──
   const handleRender = async (quality = renderQuality) => {
     if (!selectedArtwork || !seoData) return;
     setRenderQuality(quality);
     setRendering(true);
     setRenderResult(null);
-    startRenderProgress();
+    setRenderError(null);
+    setRenderProgress(1);
     try {
       const cleanPreset = selectedPreset.replace(/^⚡/, "");
       const isCustom    = selectedPreset.startsWith("⚡");
@@ -2061,50 +2213,38 @@ ${imgBlock}
         }),
       });
       const d = await r.json();
-      if (d.mp4_path || d.render?.output_path) {
-        const mp4 = d.mp4_path || d.render?.output_path;
-        setRenderResult({
-          output_file: mp4,
-          file_size_mb: d.render?.file_size_mb || "?",
-          thumbnail_path: d.thumbnail_path,
-          ...d,
-        });
-        setLastAction(`RENDER COMPLETE - ${d.render?.file_size_mb || "?"} MB`);
-        stopRenderProgress(true);
-      } else if (d.error) {
-        setLastAction(`RENDER ERROR: ${d.error}`);
-        stopRenderProgress(false);
+      if (!r.ok || !d.job_id) {
+        throw new Error(d.error || `Render başlatılamadı (HTTP ${r.status})`);
       }
-    } catch (e) { console.error("render:", e); stopRenderProgress(false); }
+
+      const result = await pollJob(d.job_id, (pct) => setRenderProgress(pct));
+      const mp4 = result.mp4_path || result.render?.output_path;
+      setRenderResult({
+        output_file: mp4,
+        file_size_mb: result.render?.file_size_mb || "?",
+        thumbnail_path: result.thumbnail_path,
+        ...result,
+      });
+      setRenderProgress(100);
+      setLastAction(`RENDER COMPLETE - ${result.render?.file_size_mb || "?"} MB`);
+      pushToast({ type: "success", msg: `Render tamamlandı (${result.render?.file_size_mb || "?"} MB)` });
+    } catch (e) {
+      const msg = e?.message || "Render başarısız";
+      setRenderProgress(0);
+      setLastAction(`RENDER ERROR: ${msg}`);
+      setRenderError(msg);
+      pushToast({ type: "error", msg: `Render hatası: ${msg}` });
+    }
     finally { setRendering(false); }
   };
 
-  // ─── UPLOAD PROGRESS HELPER ───────────────────────
-  // Tahmini ilerleme: 3 saniyede bir artar, max %94'de bekler (gerçek tamamlanmayı bekler)
-  const startUploadProgress = () => {
-    setUploadProgress(2);
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-    uploadTimerRef.current = setInterval(() => {
-      setUploadProgress((prev) => {
-        // İlerleme eğrisi: hızlı başlar, yavaşlar, max 94'de durur
-        if (prev >= 94) return 94;
-        const remaining = 94 - prev;
-        const step = Math.max(1, Math.round(remaining * 0.18)); // %18 yaklaşma
-        return Math.min(94, prev + step);
-      });
-    }, 3000);
-  };
-
-  const stopUploadProgress = (success) => {
-    if (uploadTimerRef.current) { clearInterval(uploadTimerRef.current); uploadTimerRef.current = null; }
-    setUploadProgress(success ? 100 : 0);
-  };
-
-  // ─── DEPLOY NOW ───────────────────────────────────
-  const handleDeployNow = async () => {
+  // ─── DEPLOY NOW — /api/upload/youtube 202 {job_id} donuyor; ──
+  // ── gercek yuzde /api/jobs/<id>'den gelir. force=true 409 (mukerrer) uyarisini gecer. ──
+  const handleDeployNow = async (force = false) => {
     if (!renderResult || !seoData) return;
     setDeploying(true);
     setUploadProgress(0);
+    setDeployError(null);
 
     const initial = {};
     Object.entries(platforms).forEach(([k, v]) => {
@@ -2115,12 +2255,13 @@ ${imgBlock}
     // ── YouTube ──
     if (platforms.youtube) {
       setDeployStatus((p) => ({ ...p, youtube: { status: "uploading" } }));
-      startUploadProgress();
       try {
         const r = await fetch(`${API}/upload/youtube`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            beat_id:         selectedBeatId,
+            beat_name:       beatName,
             mp4_path:        renderResult.output_file,
             thumbnail_path:  renderResult.thumbnail_path || null,
             title:           seoData.title,
@@ -2128,32 +2269,40 @@ ${imgBlock}
             tags:            seoData.tags,
             category_id:     seoData.category || "10",
             privacy_status:  privacy || "public",
+            playlist_id:     selectedPlaylist || null,
+            force,
           }),
         });
         const d = await r.json();
-        if (d.video_id) {
-          const url = `https://youtu.be/${d.video_id}`;
-          stopUploadProgress(true);
-          if (selectedPlaylist && d.video_id) {
-            await fetch(`${API}/youtube/playlists/add`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ video_id: d.video_id, playlist_id: selectedPlaylist }),
-            }).catch(() => {});
-          }
-          setDeployStatus((p) => ({ ...p, youtube: { status: "done", url } }));
-          setLastAction(`DEPLOYED: ${url}`);
-        } else {
-          const errMsg = d.error || "Upload failed";
-          stopUploadProgress(false);
-          setDeployStatus((p) => ({ ...p, youtube: { status: "error", msg: errMsg } }));
-          setLastAction(`DEPLOY ERROR: ${errMsg}`);
+
+        if (r.status === 409 && d.code === "duplicate") {
+          setDeployStatus((p) => ({ ...p, youtube: { status: "error", msg: "Bu beat daha önce yüklenmiş." } }));
+          setDeploying(false);
+          pushToast({
+            type: "error", ttl: 15000,
+            msg: `"${beatName}" daha önce YouTube'a yüklenmiş${d.previous?.[0]?.video_url ? ` (${d.previous[0].video_url})` : ""}.`,
+            actionLabel: "YİNE DE YÜKLE",
+            onAction: () => handleDeployNow(true),
+          });
+          return;
         }
+        if (!r.ok || !d.job_id) {
+          throw new Error(d.error || `Yükleme başlatılamadı (HTTP ${r.status})`);
+        }
+
+        const result = await pollJob(d.job_id, (pct) => setUploadProgress(pct));
+        const url = result.video_url || (result.video_id ? `https://youtu.be/${result.video_id}` : null);
+        setUploadProgress(100);
+        setDeployStatus((p) => ({ ...p, youtube: { status: "done", url } }));
+        setLastAction(`DEPLOYED: ${url}`);
+        pushToast({ type: "success", msg: `YouTube'a yüklendi: ${url}` });
       } catch (e) {
-        const msg = e?.message || "Network error";
-        stopUploadProgress(false);
+        const msg = e?.message || "Yükleme başarısız";
+        setUploadProgress(0);
         setDeployStatus((p) => ({ ...p, youtube: { status: "error", msg } }));
+        setDeployError(msg);
         setLastAction(`DEPLOY ERROR: ${msg}`);
+        pushToast({ type: "error", msg: `Yükleme hatası: ${msg}` });
       }
     }
 
@@ -2169,20 +2318,22 @@ ${imgBlock}
   };
 
 
-  // ─── SCHEDULE ─────────────────────────────────────
-  const handleConfirmSchedule = async (effectiveHour) => {
+  // ─── SCHEDULE — /api/schedule/youtube da ayni sekilde asenkron ──
+  const handleConfirmSchedule = async (effectiveHour, force = false) => {
     if (!renderResult || !seoData || !scheduleDate) return;
     setPublishModalOpen(false);  // close modal
     setDeploying(true);
     setUploadProgress(0);
+    setDeployError(null);
     setDeployStatus({ youtube: { status: "uploading" } });
-    startUploadProgress();
 
     try {
       const r = await fetch(`${API}/schedule/youtube`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          beat_id:         selectedBeatId,
+          beat_name:       beatName,
           mp4_path:        renderResult.output_file,   // ← backend expects mp4_path
           thumbnail_path:  renderResult.thumbnail_path || null,
           title:           seoData.title,
@@ -2192,33 +2343,41 @@ ${imgBlock}
           schedule_date:   scheduleDate,
           schedule_hour:   effectiveHour ?? scheduleHour,
           schedule_min:    scheduleMin,
+          playlist_id:     selectedPlaylist || null,
+          force,
         }),
       });
       const d = await r.json();
-      if (d.video_id) {
-        const url = `https://youtu.be/${d.video_id}`;
-        stopUploadProgress(true);
-        if (selectedPlaylist && d.video_id) {
-          await fetch(`${API}/youtube/playlists/add`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ video_id: d.video_id, playlist_id: selectedPlaylist }),
-          }).catch(() => {});
-        }
-        setDeployStatus({ youtube: { status: "done", url } });
-        setLastAction(`SCHEDULED: ${scheduleDate} ${String(effectiveHour ?? scheduleHour).padStart(2,"0")}:${String(scheduleMin).padStart(2,"0")} TRT`);
 
-      } else {
-        const errMsg = d.error || "Schedule failed";
-        stopUploadProgress(false);
-        setDeployStatus({ youtube: { status: "error", msg: errMsg } });
-        setLastAction(`SCHEDULE ERROR: ${errMsg}`);
+      if (r.status === 409 && d.code === "duplicate") {
+        setDeployStatus({ youtube: { status: "error", msg: "Bu beat daha önce yüklenmiş." } });
+        setDeploying(false);
+        pushToast({
+          type: "error", ttl: 15000,
+          msg: `"${beatName}" daha önce YouTube'a yüklenmiş${d.previous?.[0]?.video_url ? ` (${d.previous[0].video_url})` : ""}.`,
+          actionLabel: "YİNE DE PLANLA",
+          onAction: () => handleConfirmSchedule(effectiveHour, true),
+        });
+        return;
       }
+      if (!r.ok || !d.job_id) {
+        throw new Error(d.error || `Zamanlama başlatılamadı (HTTP ${r.status})`);
+      }
+
+      const result = await pollJob(d.job_id, (pct) => setUploadProgress(pct));
+      const url = result.video_url || (result.video_id ? `https://youtu.be/${result.video_id}` : null);
+      const hourLabel = effectiveHour ?? scheduleHour;
+      setUploadProgress(100);
+      setDeployStatus({ youtube: { status: "done", url } });
+      setLastAction(`SCHEDULED: ${scheduleDate} ${String(hourLabel).padStart(2,"0")}:${String(scheduleMin).padStart(2,"0")} TRT`);
+      pushToast({ type: "success", msg: `${scheduleDate} ${String(hourLabel).padStart(2,"0")}:${String(scheduleMin).padStart(2,"0")} TRT için zamanlandı.` });
     } catch (e) {
-      const msg = e?.message || "Network error";
-      stopUploadProgress(false);
+      const msg = e?.message || "Zamanlama başarısız";
+      setUploadProgress(0);
       setDeployStatus({ youtube: { status: "error", msg } });
+      setDeployError(msg);
       setLastAction(`SCHEDULE ERROR: ${msg}`);
+      pushToast({ type: "error", msg: `Zamanlama hatası: ${msg}` });
     }
     setDeploying(false);
   };
@@ -2226,6 +2385,38 @@ ${imgBlock}
 
   const handleTogglePlatform = (key) => {
     setPlatforms((p) => ({ ...p, [key]: !p[key] }));
+  };
+
+  // ─── YOUTUBE CONNECT/DISCONNECT — arayuzden OAuth ──
+  const handleYoutubeConnect = async () => {
+    setYtAuthLoading(true);
+    try {
+      const r = await fetch(`${API}/youtube/auth/start`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok || !d.job_id) {
+        throw new Error(d.error || `Bağlantı başlatılamadı (HTTP ${r.status})`);
+      }
+      pushToast({ type: "info", msg: "Tarayıcıda Google girişi açıldı — devam etmek için onayla." });
+      const result = await pollJob(d.job_id, () => {}, 1200);
+      await fetchYtStatus();
+      const channelName = result?.channel?.title;
+      pushToast({ type: "success", msg: channelName ? `YouTube bağlandı: ${channelName}` : "YouTube bağlandı." });
+    } catch (e) {
+      pushToast({ type: "error", ttl: 9000, msg: `YouTube bağlantı hatası: ${e?.message || "bilinmeyen hata"}` });
+    }
+    finally { setYtAuthLoading(false); }
+  };
+
+  const handleYoutubeDisconnect = async () => {
+    setYtAuthLoading(true);
+    try {
+      await fetch(`${API}/youtube/auth/logout`, { method: "POST" });
+      await fetchYtStatus();
+      pushToast({ type: "info", msg: "YouTube bağlantısı kaldırıldı." });
+    } catch (e) {
+      pushToast({ type: "error", msg: `Bağlantı kaldırma hatası: ${e?.message || "bilinmeyen hata"}` });
+    }
+    finally { setYtAuthLoading(false); }
   };
 
   // ─── DERIVED ──────────────────────────────────────
@@ -2247,6 +2438,7 @@ ${imgBlock}
     onRender: handleRenderClick,   // ← shows quality modal
     rendering, renderResult, renderProgress,
     artist1, artist2, beatName, bpm, beatKey, vibe, mood, locked,
+    seoError, renderError,
   };
 
   // ─── SHARED OUTPUT PANEL PROPS ────────────────────
@@ -2265,6 +2457,7 @@ ${imgBlock}
     scheduleMin, setScheduleMin,
     onConfirmSchedule: handleConfirmSchedule,
     privacy, setPrivacy,
+    deployError,
   };
 
   return (
@@ -2398,11 +2591,18 @@ ${imgBlock}
                 <PlatformSelector selected={platforms} onToggle={handleTogglePlatform} />
                 <SecDiv label="SYSTEM" />
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
                     <span className="f-data" style={{fontSize:10,color:"var(--txt-dim)"}}>YOUTUBE API</span>
-                    <span className="f-data" style={{fontSize:10,color:ytOk?"var(--accent)":"#e05555"}}>
-                      {ytOk ? "AUTHENTICATED" : "REQUIRES SETUP"}
-                    </span>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span className="f-data" style={{fontSize:10,color:ytOk?"var(--accent)":"#e05555"}}>
+                        {ytOk ? "AUTHENTICATED" : "REQUIRES SETUP"}
+                      </span>
+                      <button className="btn-ghost" style={{fontSize:9,padding:"3px 8px"}}
+                        disabled={ytAuthLoading}
+                        onClick={ytOk ? handleYoutubeDisconnect : handleYoutubeConnect}>
+                        {ytAuthLoading ? "..." : ytOk ? "DISCONNECT" : "CONNECT YOUTUBE"}
+                      </button>
+                    </div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <span className="f-data" style={{fontSize:10,color:"var(--txt-dim)"}}>FFMPEG</span>
@@ -2431,6 +2631,8 @@ ${imgBlock}
       {qualityModal && (
         <QualityModal onSelect={handleQualitySelected} />
       )}
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
