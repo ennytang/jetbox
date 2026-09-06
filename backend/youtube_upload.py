@@ -1,4 +1,4 @@
-﻿"""
+"""
 JETBOX v3 â€” YouTube Direct Upload Module
 Replaces n8n. Uses google-api-python-client + OAuth2.
 Resumable upload with progress tracking, retry logic.
@@ -125,6 +125,17 @@ def authenticate(force_new: bool = False) -> object:
     return youtube
 
 
+def revoke_auth() -> dict:
+    """Kayıtlı token'ı siler (arayüzden 'Disconnect')."""
+    if os.path.exists(TOKEN_FILE):
+        try:
+            os.remove(TOKEN_FILE)
+            return {"success": True, "removed": True}
+        except OSError as e:
+            return {"success": False, "error": str(e)}
+    return {"success": True, "removed": False}
+
+
 def get_auth_status() -> dict:
     """Check current authentication status without triggering auth flow."""
     status = {
@@ -164,6 +175,7 @@ def upload_video(
     thumbnail_path: str = None,
     on_progress: callable = None,
     publish_at: str = None,
+    default_language: str = "en",
 ) -> dict:
     """
     Upload a video to YouTube with resumable upload + retry logic.
@@ -208,7 +220,7 @@ def upload_video(
             "description": description,
             "tags": tags if isinstance(tags, list) else json.loads(tags),
             "categoryId": category_id,
-            "defaultLanguage": "en",
+            "defaultLanguage": default_language or "en",
         },
         "status": status_block,
     }

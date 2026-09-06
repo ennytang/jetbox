@@ -35,7 +35,10 @@ from youtube_upload import (
     upload_video, get_auth_status, get_channel_info,
     setup_wizard, check_dependencies, GOOGLE_API_AVAILABLE,
     get_playlists, add_video_to_playlist, get_channel_videos,
+    authenticate, revoke_auth,
 )
+from jobs import JobManager
+import history
 from plugins.visual_processor import apply_fisheye, fisheye_from_url, save_fisheye
 
 # â”€â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -65,6 +68,10 @@ watcher = BeatWatcher(BEATS_DIR)
 watcher.start()
 # Load existing WAV files into pending queue on startup
 watcher.add_existing_as_pending()
+
+# Arka plan iş kuyruğu (render / upload / auth) + kalıcı geçmiş (SQLite)
+jobs = JobManager()
+DB_PATH = history.init_db(PROJECT_DIR)
 
 
 def load_config() -> dict:
@@ -111,7 +118,8 @@ def health():
     yt_status = get_auth_status()
     return jsonify({
         "status": "ok",
-        "version": "3.1.0",
+        "version": "4.1.0",
+        "db_path": DB_PATH,
         "ffmpeg": ffmpeg,
         "youtube": yt_status,
         "watcher_running": watcher._running,
@@ -616,65 +624,65 @@ def channel_meta():
 def render_video():
     """
     Render final MP4 from LUT-processed image + WAV audio.
+    ARTIK ASENKRON: hemen {"job_id": ...} döner; ilerleme /api/jobs/<id>.
     Expects: {
         "beat_id": "beat_xxx",
         "artwork_path": "RAGE/img.jpg",
         "preset": "rage",
         "beat_name": "Night Vision",
-        "quality": "2K" | "HD"   â† NEW: upscale quality selection
+        "quality": "2K" | "HD",
+        "crop": {...} | null,
+        "lut_preset_name": str | null,
+        "vfx_config": {...} | null
     }
     """
-    data = request.json
+    data = request.json or {}
     beat_id = data.get("beat_id")
-    
-    # Get beat info
+
     beat = watcher.get_beat_by_id(beat_id)
     if not beat:
         return jsonify({"error": "Beat not found"}), 404
-    
-    watcher.update_status(beat_id, "rendering")
-    
-    # Step 1: Process artwork with LUT + Upscale
+
     artwork_rel = data.get("artwork_path", "")
     artwork_full = os.path.join(ARTWORKS_DIR, artwork_rel)
+    if not os.path.exists(artwork_full):
+        return jsonify({"error": "Artwork not found"}), 404
+
+    watcher.update_status(beat_id, "rendering")
+    job = jobs.create("render", _do_render, data, beat, artwork_full)
+    return jsonify({"job_id": job["id"], "status": job["status"], "beat_id": beat_id}), 202
+
+
+def _do_render(progress, data: dict, beat: dict, artwork_full: str) -> dict:
+    """Job gövdesi: LUT/upscale (0-15%) + FFmpeg (15-99%)."""
+    beat_id   = beat["id"]
     preset    = data.get("preset", "rage")
     beat_name = data.get("beat_name", "output")
     crop      = data.get("crop", None)
     quality   = data.get("quality", "HD")  # "2K" or "HD"
-    
-    if not os.path.exists(artwork_full):
-        return jsonify({"error": "Artwork not found"}), 404
-    
+
+    progress(2, "Artwork işleniyor (LUT + upscale)")
     try:
         lut_preset_name = data.get("lut_preset_name")
         custom_presets = load_custom_presets()
-        
+
         if lut_preset_name and lut_preset_name in custom_presets:
-            # Use full tuner pipeline + smart upscaler
-            from upscaler import upscale_for_render, QUALITY_SPECS
+            from upscaler import QUALITY_SPECS, upscale_artwork, crop_square, compose_video_frame
             from PIL import Image
             import numpy as np
 
-            # Get the video frame dimensions for this quality
             spec = QUALITY_SPECS.get(quality, QUALITY_SPECS["HD"])
-            fw, fh = spec["frame"]
 
-            # Load, apply the user's 1:1 crop (None -> centered), then upscale
-            from upscaler import upscale_artwork, crop_square
             img_raw = Image.open(artwork_full).convert("RGB")
-            img_raw = crop_square(img_raw, crop)   # BUGFIX: crop was ignored here
+            img_raw = crop_square(img_raw, crop)
             img_upscaled = upscale_artwork(img_raw, quality=quality, square_crop=False)
+            progress(8, "LUT uygulanıyor")
 
-            # Apply LUT processing  (lut_process_full already imported at top from lut_tuner)
             tuner_params = custom_presets[lut_preset_name]
             arr = np.array(img_upscaled)
             processed_pil = lut_process_full(arr, tuner_params)
-
-            # Compose into video frame
-            from upscaler import compose_video_frame
             video_frame_img = compose_video_frame(processed_pil, quality=quality)
 
-            # Save video frame and thumbnail
             safe_name = beat_name.replace(" ", "_").replace('"', '').replace("'", "")
             video_filename = f"{safe_name}_{lut_preset_name}_video.jpg"
             thumb_filename = f"{safe_name}_{lut_preset_name}_thumbnail.jpg"
@@ -682,7 +690,6 @@ def render_video():
             thumb_path_out = os.path.join(OUTPUT_DIR, thumb_filename)
 
             video_frame_img.save(video_path_out, "JPEG", quality=95)
-            # Thumbnail = video frame scaled down
             thumb = video_frame_img.resize((1280, 720), Image.LANCZOS)
             thumb.save(thumb_path_out, "JPEG", quality=90)
 
@@ -697,7 +704,6 @@ def render_video():
                 "input_path": artwork_full,
             }
         else:
-            # Use basic built-in preset (RAGE / MELODIC)
             lut_result = process_artwork(
                 input_path=artwork_full,
                 preset_name=preset,
@@ -706,43 +712,55 @@ def render_video():
                 crop=crop
             )
     except Exception as e:
-        return jsonify({"error": f"LUT processing failed: {e}"}), 500
-    
-    # Step 2: Render MP4 (with optional VFX)
+        watcher.update_status(beat_id, "render_failed")
+        history.add_entry("render", status="failed", beat_filename=beat.get("filename"),
+                          beat_name=beat_name, error=f"LUT processing failed: {e}")
+        return {"success": False, "error": f"LUT processing failed: {e}"}
+
+    progress(15, "MP4 render ediliyor")
     video_frame = lut_result["outputs"]["video"]["path"]
     audio_path = beat["filepath"]
-
-    # Get actual audio duration to pass as hard cap â€” prevents longer-than-beat renders
     audio_duration = get_audio_duration(audio_path)
 
     safe_name = beat_name.replace(" ", "_").replace('"', '').replace("'", "")
-    mp4_filename = f"{safe_name}_{preset}_final.mp4"  # .mp4 not .mov
+    mp4_filename = f"{safe_name}_{preset}_final.mp4"
     mp4_path = os.path.join(OUTPUT_DIR, mp4_filename)
 
     vfx_config = data.get("vfx_config", None)
+
+    def ff_progress(pct):
+        progress(15 + int(pct * 0.84), "MP4 render ediliyor")
 
     render_result = render_mp4_with_effects(
         image_path=video_frame,
         audio_path=audio_path,
         output_path=mp4_path,
         vfx_config=vfx_config,
-        duration=audio_duration if audio_duration > 0 else None,  # exact audio length cap
+        duration=audio_duration if audio_duration > 0 else None,
+        on_progress=ff_progress,
     )
-    
+
     if not render_result.get("success"):
         watcher.update_status(beat_id, "render_failed")
-        return jsonify({"error": render_result.get("error", "Render failed")}), 500
-    
+        history.add_entry("render", status="failed", beat_filename=beat.get("filename"),
+                          beat_name=beat_name, error=render_result.get("error", "Render failed"))
+        return {"success": False, "error": render_result.get("error", "Render failed")}
+
     watcher.update_status(beat_id, "rendered")
-    
-    return jsonify({
+    history.add_entry("render", beat_filename=beat.get("filename"), beat_name=beat_name,
+                      output_path=mp4_path,
+                      extra={"quality": quality, "preset": lut_result.get("preset"),
+                             "file_size_mb": render_result.get("file_size_mb")})
+
+    return {
+        "success": True,
         "lut": lut_result,
         "render": render_result,
         "mp4_path": mp4_path,
         "thumbnail_path": lut_result["outputs"]["thumbnail"]["path"],
         "beat_id": beat_id,
         "audio_duration_seconds": round(audio_duration, 2) if audio_duration > 0 else None,
-    })
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -935,87 +953,127 @@ def youtube_add_to_playlist():
     return jsonify(result)
 
 
+def _resolve_upload_request(data: dict):
+    """Ortak doğrulama; (hata, None) veya (None, ctx) döner."""
+    yt_auth = get_auth_status()
+    if not yt_auth.get("authenticated"):
+        return ({"error": "YouTube bağlı değil. DEPLOY sekmesinden 'CONNECT YOUTUBE' ile bağlan.",
+                 "code": "not_authenticated", "auth_status": yt_auth}, 400), None
+
+    mp4_path = data.get("mp4_path") or data.get("video_path")
+    if not mp4_path:
+        return ({"error": "mp4_path is required"}, 400), None
+    if not os.path.exists(mp4_path):
+        return ({"error": f"MP4 file not found: {mp4_path}"}, 404), None
+
+    beat_id = data.get("beat_id")
+    beat = watcher.get_beat_by_id(beat_id) if beat_id else None
+    beat_filename = beat.get("filename") if beat else None
+
+    # Mükerrer upload koruması (force=true ile geçilir)
+    if beat_filename and not data.get("force"):
+        prev = history.uploads_for_beat(beat_filename)
+        if prev:
+            return ({"error": "Bu beat daha önce yüklenmiş.", "code": "duplicate",
+                     "previous": prev[:3]}, 409), None
+
+    cfg = load_config()
+    ctx = {
+        "beat_id": beat_id, "beat_filename": beat_filename,
+        "mp4_path": mp4_path,
+        "title": data.get("title", ""),
+        "description": data.get("description", ""),
+        "tags": data.get("tags", []),
+        "category_id": data.get("category_id") or cfg.get("youtube_category", "10"),
+        "thumbnail_path": data.get("thumbnail_path"),
+        "default_language": cfg.get("default_language", "en"),
+        "playlist_id": data.get("playlist_id"),
+        "beat_name": data.get("beat_name"),
+    }
+    return None, ctx
+
+
+def _do_upload(progress, ctx: dict, privacy_status: str, publish_at: str = None) -> dict:
+    kind = "schedule" if publish_at else "upload"
+    beat_id = ctx.get("beat_id")
+    if beat_id:
+        watcher.update_status(beat_id, "uploading" if not publish_at else "uploading (scheduled)")
+    progress(1, "YouTube'a yükleniyor")
+
+    result = upload_video(
+        mp4_path=ctx["mp4_path"],
+        title=ctx["title"],
+        description=ctx["description"],
+        tags=ctx["tags"],
+        category_id=ctx["category_id"],
+        privacy_status=privacy_status,
+        thumbnail_path=ctx["thumbnail_path"],
+        on_progress=lambda p: progress(max(1, min(96, p)), "YouTube'a yükleniyor"),
+        publish_at=publish_at,
+        default_language=ctx["default_language"],
+    )
+
+    if not result.get("success"):
+        if beat_id:
+            watcher.update_status(beat_id, f"{kind}_failed")
+        history.add_entry(kind, status="failed", beat_filename=ctx["beat_filename"],
+                          beat_name=ctx["beat_name"], title=ctx["title"],
+                          error=result.get("error"))
+        return result
+
+    # Playlist (opsiyonel)
+    if ctx.get("playlist_id") and result.get("video_id"):
+        progress(97, "Playlist'e ekleniyor")
+        result["playlist"] = add_video_to_playlist(result["video_id"], ctx["playlist_id"])
+
+    if beat_id:
+        watcher.mark_processed(beat_id, {
+            "video_id": result.get("video_id"),
+            "video_url": result.get("video_url"),
+            "uploaded_at": result.get("uploaded_at"),
+            "scheduled_at": publish_at,
+        })
+    history.add_entry(kind, beat_filename=ctx["beat_filename"], beat_name=ctx["beat_name"],
+                      title=ctx["title"], video_id=result.get("video_id"),
+                      video_url=result.get("video_url"), privacy=privacy_status,
+                      scheduled_at=publish_at, output_path=ctx["mp4_path"],
+                      extra={"thumbnail_set": result.get("thumbnail_set"),
+                             "playlist_id": ctx.get("playlist_id")})
+    if publish_at:
+        result["scheduled_at"] = publish_at
+    return result
+
+
 @app.route('/api/upload/youtube', methods=['POST'])
 def upload_to_youtube():
     """
-    Upload video directly to YouTube via API.
-    Expects: {
-        "mp4_path": "/path/to/video.mp4",
-        "thumbnail_path": "/path/to/thumb.jpg",  (optional)
-        "title": "[FREE] ...",
-        "description": "...",
-        "tags": [...],
-        "category_id": "10",
-        "privacy_status": "public"
-    }
+    Upload video directly to YouTube via API — ASENKRON.
+    202 {"job_id": ...}; ilerleme /api/jobs/<id>.
+    409 {"code":"duplicate"} → aynı beat daha önce yüklenmiş; force=true ile geç.
+    Expects: { mp4_path, thumbnail_path?, title, description, tags,
+               category_id?, privacy_status?, beat_id?, playlist_id?, force? }
     """
-    yt_auth = get_auth_status()
-    if not yt_auth.get("authenticated"):
-        return jsonify({
-            "error": "YouTube not authenticated. Run: python youtube_upload.py --setup",
-            "auth_status": yt_auth
-        }), 400
-
     data = request.json or {}
-    beat_id = data.get("beat_id")  # optional
-    mp4_path = data.get("mp4_path") or data.get("video_path")  # accept both keys
-
-    if not mp4_path:
-        return jsonify({"error": "mp4_path is required"}), 400
-    if not os.path.exists(mp4_path):
-        return jsonify({"error": f"MP4 file not found: {mp4_path}"}), 404
-
-    if beat_id:
-        watcher.update_status(beat_id, "uploading")
-
-    # Direct YouTube upload
-    result = upload_video(
-        mp4_path=mp4_path,
-        title=data.get("title", ""),
-        description=data.get("description", ""),
-        tags=data.get("tags", []),
-        category_id=data.get("category_id", "10"),
-        privacy_status=data.get("privacy_status", "public"),
-        thumbnail_path=data.get("thumbnail_path"),
-    )
-
-    if result.get("success"):
-        if beat_id:
-            watcher.mark_processed(beat_id, {
-                "video_id": result.get("video_id"),
-                "video_url": result.get("video_url"),
-                "uploaded_at": result.get("uploaded_at"),
-            })
-        return jsonify(result)
-    else:
-        if beat_id:
-            watcher.update_status(beat_id, "upload_failed")
-        return jsonify(result), 500
-
+    err, ctx = _resolve_upload_request(data)
+    if err:
+        return jsonify(err[0]), err[1]
+    privacy = data.get("privacy_status", "public")
+    job = jobs.create("upload", _do_upload, ctx, privacy)
+    return jsonify({"job_id": job["id"], "status": job["status"]}), 202
 
 
 @app.route('/api/schedule/youtube', methods=['POST'])
 def schedule_youtube():
     """
-    Upload video to YouTube scheduled (private until publishAt).
-    Expects: { mp4_path, title, description, tags, category_id,
-               schedule_date (YYYY-MM-DD), schedule_hour (TRT), schedule_min }
+    Upload video to YouTube scheduled (private until publishAt) — ASENKRON.
+    Expects: { mp4_path, title, description, tags, category_id?,
+               schedule_date (YYYY-MM-DD), schedule_hour (TRT), schedule_min,
+               beat_id?, playlist_id?, force? }
     """
-    yt_auth = get_auth_status()
-    if not yt_auth.get("authenticated"):
-        return jsonify({
-            "error": "YouTube not authenticated",
-            "auth_status": yt_auth
-        }), 400
-
     data = request.json or {}
-    beat_id = data.get("beat_id")  # optional
-    mp4_path = data.get("mp4_path") or data.get("video_path")  # accept both keys
-
-    if not mp4_path:
-        return jsonify({"error": "mp4_path is required"}), 400
-    if not os.path.exists(mp4_path):
-        return jsonify({"error": f"MP4 file not found: {mp4_path}"}), 404
+    err, ctx = _resolve_upload_request(data)
+    if err:
+        return jsonify(err[0]), err[1]
 
     schedule_hour = int(data.get("schedule_hour", 22))
     schedule_min  = int(data.get("schedule_min", 0))
@@ -1023,64 +1081,98 @@ def schedule_youtube():
 
     # TRT is UTC+3. Convert TRT HH:MM -> UTC HH:MM using total minutes
     trt_total_minutes = schedule_hour * 60 + schedule_min
-    utc_total_minutes = trt_total_minutes - 180  # subtract UTC+3 offset
+    utc_total_minutes = trt_total_minutes - 180
     day_offset = 0
     if utc_total_minutes < 0:
-        utc_total_minutes += 1440  # wrap around midnight
-        day_offset = -1            # previous calendar day in UTC
+        utc_total_minutes += 1440
+        day_offset = -1
     target_utc_hour = utc_total_minutes // 60
     target_utc_min  = utc_total_minutes % 60
 
     if schedule_date_str:
         from datetime import date as _date
         chosen_date = _date.fromisoformat(schedule_date_str)
-        # Use exactly the chosen date â€” no day-offset adjustment.
-        # day_offset only matters when crossing UTC midnight (e.g. TRT 01:00 = UTC 22:00 prev day)
         target_utc = datetime(chosen_date.year, chosen_date.month, chosen_date.day,
                               target_utc_hour, target_utc_min, 0)
         if day_offset:
             target_utc += timedelta(days=day_offset)
-        # Warn if the resulting UTC time is more than 10 minutes in the past
         if target_utc < datetime.utcnow() - timedelta(minutes=10):
-            return jsonify({"error": "SeÃ§ilen saat geÃ§miÅŸte kaldÄ±. LÃ¼tfen ileride bir saat seÃ§in."}), 400
+            return jsonify({"error": "Seçilen saat geçmişte kaldı. Lütfen ileride bir saat seçin."}), 400
     else:
-        # No date given: use today, auto-advance to tomorrow if time has passed
         now_utc = datetime.utcnow()
         target_utc = now_utc.replace(hour=target_utc_hour, minute=target_utc_min, second=0, microsecond=0)
         if now_utc >= target_utc:
             target_utc += timedelta(days=1)
 
     publish_at = target_utc.isoformat() + "Z"
+    job = jobs.create("schedule", _do_upload, ctx, "private", publish_at)
+    return jsonify({
+        "job_id": job["id"], "status": job["status"],
+        "scheduled_at": publish_at,
+        "scheduled_trt": f"{schedule_date_str or 'auto'} {schedule_hour:02d}:{schedule_min:02d} TRT",
+    }), 202
 
-    if beat_id:
-        watcher.update_status(beat_id, "uploading to cloud schedule")
 
-    result = upload_video(
-        mp4_path=mp4_path,
-        title=data.get("title", ""),
-        description=data.get("description", ""),
-        tags=data.get("tags", []),
-        category_id=data.get("category_id", "10"),
-        privacy_status="private",  # required for publishAt
-        thumbnail_path=data.get("thumbnail_path"),
-        publish_at=publish_at
-    )
+# ═══════════════════════════════════════════════════════════════
+# JOBS / HISTORY / AUTH — v4.1
+# ═══════════════════════════════════════════════════════════════
 
-    if result.get("success"):
-        if beat_id:
-            watcher.mark_processed(beat_id, {
-                "video_id": result.get("video_id"),
-                "video_url": result.get("video_url"),
-                "scheduled_at": publish_at,
-            })
-        result["scheduled_at"] = publish_at
-        result["scheduled_trt"] = f"{schedule_date_str} {schedule_hour:02d}:{schedule_min:02d} TRT"
-        return jsonify(result)
-    else:
-        if beat_id:
-            watcher.update_status(beat_id, "schedule_failed")
-        return jsonify(result), 500
+@app.route('/api/jobs', methods=['GET'])
+def list_jobs():
+    kind = request.args.get('kind')
+    limit = min(int(request.args.get('limit', 50)), 200)
+    return jsonify({"jobs": jobs.list(limit=limit, kind=kind)})
 
+
+@app.route('/api/jobs/<job_id>', methods=['GET'])
+def get_job(job_id):
+    job = jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job)
+
+
+@app.route('/api/history', methods=['GET'])
+def get_history():
+    kind = request.args.get('kind')
+    limit = min(int(request.args.get('limit', 100)), 500)
+    return jsonify({"items": history.list_entries(limit=limit, kind=kind),
+                    "stats": history.stats()})
+
+
+@app.route('/api/history/beat', methods=['GET'])
+def history_for_beat():
+    """?filename=xxx.wav → bu beat için önceki başarılı upload kayıtları."""
+    fname = request.args.get('filename', '')
+    return jsonify({"filename": fname, "uploads": history.uploads_for_beat(fname)})
+
+
+@app.route('/api/youtube/auth/start', methods=['POST'])
+def youtube_auth_start():
+    """
+    OAuth akışını arayüzden başlatır: tarayıcı açılır, kullanıcı Google'da
+    onaylar, token kaydedilir. Job döner; frontend job bitince /api/youtube/status'u yeniler.
+    """
+    deps = check_dependencies()
+    if not deps["google_api_available"]:
+        return jsonify({"error": "Google API kütüphaneleri eksik", "install": deps["install_command"]}), 500
+    if not deps["client_secrets_exists"]:
+        return jsonify({"error": "client_secrets.json bulunamadı. Google Cloud Console'dan indirip proje köküne koy.",
+                        "code": "no_client_secrets"}), 400
+
+    def _auth(progress):
+        progress(10, "Tarayıcıda Google girişi bekleniyor")
+        authenticate(force_new=True)
+        progress(80, "Kanal bilgisi alınıyor")
+        return {"success": True, "channel": get_channel_info()}
+
+    job = jobs.create("auth", _auth)
+    return jsonify({"job_id": job["id"], "status": job["status"]}), 202
+
+
+@app.route('/api/youtube/auth/logout', methods=['POST'])
+def youtube_auth_logout():
+    return jsonify(revoke_auth())
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1233,7 +1325,8 @@ def _run_server():
     print("=" * 55)
     print()
     
-    app.run(debug=True, host='127.0.0.1', port=5001, threaded=True)
+    # debug=True + reloader BeatWatcher'ı iki kez başlatıyordu → kapalı
+    app.run(debug=False, use_reloader=False, host='127.0.0.1', port=5001, threaded=True)
 
 
 # ═══════════════════════════════════════════════════

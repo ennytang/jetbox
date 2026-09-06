@@ -1,4 +1,4 @@
-﻿"""
+"""
 JETBOX v3 â€” MP4 Render Pipeline
 FFmpeg: LUT-processed artwork (static) + WAV audio → YouTube-ready MP4
 H.264/AAC encoding, 1920Ã-1080
@@ -7,17 +7,67 @@ H.264/AAC encoding, 1920Ã-1080
 import subprocess
 import os
 import json
+import time
+import threading
 
 # â”€â”€â”€ CACHED EXECUTABLE PATHS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _FFMPEG_PATH  = None  # Cached FFmpeg executable path
 _FFPROBE_PATH = None  # Cached ffprobe executable path
 
 
+
+# ─── FFMPEG RUNNER — gerçek ilerleme ─────────────────────────────
+def _run_ffmpeg(cmd, total_duration=None, timeout=300, on_progress=None):
+    """
+    FFmpeg'i `-progress pipe:1` ile çalıştırır, out_time_us satırlarından
+    yüzde hesaplayıp on_progress(percent) çağırır.
+    Returns: (returncode, stderr_text)
+    """
+    cmd = list(cmd)
+    cmd[1:1] = ["-nostats", "-loglevel", "error", "-progress", "pipe:1"]
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, encoding="utf-8", errors="replace",
+    )
+    stderr_chunks = []
+
+    def _drain():
+        for line in proc.stderr:
+            stderr_chunks.append(line)
+
+    t = threading.Thread(target=_drain, daemon=True)
+    t.start()
+    start = time.time()
+    last = -1
+    try:
+        for line in proc.stdout:
+            if time.time() - start > timeout:
+                proc.kill()
+                raise subprocess.TimeoutExpired(cmd, timeout)
+            line = line.strip()
+            if on_progress and total_duration and line.startswith("out_time_us="):
+                try:
+                    us = int(line.split("=", 1)[1])
+                except ValueError:
+                    continue
+                pct = min(99, int(us / 1_000_000 / total_duration * 100))
+                if pct != last:
+                    last = pct
+                    on_progress(pct)
+        proc.wait(timeout=max(1, timeout - (time.time() - start)))
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise
+    t.join(timeout=2)
+    return proc.returncode, "".join(stderr_chunks)
+
+
 def render_mp4(
     image_path: str,
     audio_path: str,
     output_path: str,
-    duration: float = None
+    duration: float = None,
+    on_progress=None,
 ) -> dict:
     """
     Render static image + audio into YouTube-ready MP4.
@@ -81,17 +131,12 @@ def render_mp4(
     cmd.append(output_path)
     
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=300  # 5 min timeout
-        )
-        
-        if result.returncode != 0:
+        returncode, stderr = _run_ffmpeg(cmd, total_duration, timeout=300, on_progress=on_progress)
+
+        if returncode != 0:
             return {
                 "success": False,
-                "error": result.stderr[-500:] if result.stderr else "Unknown FFmpeg error",
+                "error": stderr[-500:] if stderr else "Unknown FFmpeg error",
                 "command": " ".join(cmd)
             }
         
@@ -124,7 +169,8 @@ def render_mp4_with_effects(
     audio_path: str,
     output_path: str,
     vfx_config: dict = None,
-    duration: float = None
+    duration: float = None,
+    on_progress=None,
 ) -> dict:
     """
     Render image + audio into MP4 with periodic video effects.
@@ -150,7 +196,7 @@ def render_mp4_with_effects(
     """
     # Fall back to static render if VFX disabled or not configured
     if not vfx_config or not vfx_config.get("enabled", False):
-        return render_mp4(image_path, audio_path, output_path, duration)
+        return render_mp4(image_path, audio_path, output_path, duration, on_progress=on_progress)
     
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"Image not found: {image_path}")
@@ -165,7 +211,7 @@ def render_mp4_with_effects(
         total_duration = min(duration, total_duration) if total_duration > 0 else duration
     # If still unknown, fall back to static render without -t
     if not total_duration or total_duration <= 0:
-        return render_mp4(image_path, audio_path, output_path, duration)
+        return render_mp4(image_path, audio_path, output_path, duration, on_progress=on_progress)
 
     # Build effect filter chain
     from video_effects import build_filter_chain
@@ -197,7 +243,7 @@ def render_mp4_with_effects(
     # build_filter_chain returns (chain, label) tuple or empty string on no effects
     if not result or not isinstance(result, tuple):
         # No valid effects â€” fall back to static
-        return render_mp4(image_path, audio_path, output_path, duration)
+        return render_mp4(image_path, audio_path, output_path, duration, on_progress=on_progress)
 
     filter_chain, final_label = result
 
@@ -230,17 +276,12 @@ def render_mp4_with_effects(
     cmd.append(output_path)
     
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600  # 10 min timeout for VFX (longer than static)
-        )
-        
-        if result.returncode != 0:
+        returncode, stderr = _run_ffmpeg(cmd, total_duration, timeout=600, on_progress=on_progress)
+
+        if returncode != 0:
             return {
                 "success": False,
-                "error": result.stderr[-500:] if result.stderr else "FFmpeg VFX render error",
+                "error": stderr[-500:] if stderr else "FFmpeg VFX render error",
                 "command": " ".join(cmd)
             }
         
