@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+@import './fonts/fonts.css';
 
 /* ═══════════════════════════════════════════════════
    SIGNAL AUTHORITY — JETBOX v4 Design System
@@ -243,6 +243,37 @@ body::after {
 .pcorners.lit::before,.pcorners.lit::after { border-color:var(--brd-active); }
 .pcorners.pulse::before,.pcorners.pulse::after {
   animation:corner-pulse 1.4s ease-in-out infinite;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — 3 sabit kolon kucuk laptoplarda tasiyordu
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 1440px) {
+  :root { --col-in: 290px; --col-out: 340px; }
+}
+@media (max-width: 1180px) {
+  :root { --col-in: 250px; --col-out: 300px; --pad: 12px; }
+  .panel-title { font-size: 12px; letter-spacing: .18em; }
+}
+@media (max-width: 900px) {
+  html, body, #root { overflow: auto; height: auto; min-height: 100vh; }
+  .app-shell { height: auto; min-height: 100vh; }
+  :root { --panel-h: auto; }
+  .panel-grid {
+    grid-template-columns: 1fr !important;
+    height: auto;
+  }
+  .panel-grid > .panel {
+    grid-column: 1 !important;
+    height: auto !important;
+    min-height: 380px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--brd-idle);
+  }
+  .panel-grid > .panel:last-child { border-bottom: none; }
+  .panel-body { max-height: 60vh; }
+  .status-bar { flex-wrap: wrap; height: auto; padding: 6px var(--pad); }
 }
 
 /* Panel connector (between INPUT and PROCESS when locked) */

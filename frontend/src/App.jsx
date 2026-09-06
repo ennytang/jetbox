@@ -722,6 +722,7 @@ function CropSelector({ imgUrl, cropRect, onChange, onNatSize }) {
 
 // ─── QUALITY MODAL ───────────────────────────────────
 function QualityModal({ onSelect }) {
+  const [remember, setRemember] = useState(false);
   const opts = [
     { id:"2K", label:"2K",  res:"2560 × 1440", desc:"Crisp on 4K/2K displays\nLarger file, best clarity" },
     { id:"HD", label:"HD",  res:"1920 × 1080", desc:"Standard YouTube HD\nFast render, universal" },
@@ -734,14 +735,22 @@ function QualityModal({ onSelect }) {
         </div>
         <div className="quality-grid">
           {opts.map((o) => (
-            <button key={o.id} className="quality-card" onClick={() => onSelect(o.id)}>
+            <button key={o.id} className="quality-card" onClick={() => onSelect(o.id, remember)}>
               <div className="quality-badge">{o.label}</div>
               <div className="quality-res">{o.res}</div>
               <div className="quality-desc">{o.desc.split("\n").map((l,i) => <div key={i}>{l}</div>)}</div>
             </button>
           ))}
         </div>
-        <div style={{padding:"10px 16px 16px",textAlign:"center"}}>
+        <div style={{padding:"0 16px 12px",display:"flex",justifyContent:"center"}}>
+          <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+            fontFamily:"var(--font-data)",fontSize:10,color:"var(--txt-dim)",letterSpacing:".06em"}}>
+            <input type="checkbox" checked={remember}
+              onChange={(e) => setRemember(e.target.checked)} />
+            REMEMBER MY CHOICE — DON'T ASK AGAIN
+          </label>
+        </div>
+        <div style={{padding:"0 16px 16px",textAlign:"center"}}>
           <span className="f-data" style={{fontSize:10,color:"var(--txt-dim)",letterSpacing:".08em"}}>
             Artwork upscaled with multi-pass LANCZOS + UnsharpMask before render
           </span>
@@ -1577,27 +1586,37 @@ function App() {
 
   // ─── LUT ───
   const [lutPresets, setLutPresets]     = useState({});
-  const [selectedPreset, setSelectedPreset] = useState("");
-  const [lutParams, setLutParams]       = useState({});
+  const [selectedPreset, setSelectedPreset] = useState(initialForm.selectedPreset || "");
+  const [lutParams, setLutParams]       = useState(initialForm.lutParams || {});
   const [tunerOpen, setTunerOpen]       = useState(false);
   const [previewUrl, setPreviewUrl]     = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
+  // ─── FORM STATE PERSIST — sayfa yenilenince kaybolmasin ───
+  const FORM_STATE_KEY = "jetbox_form_state";
+  const loadFormState = () => {
+    try {
+      const raw = localStorage.getItem(FORM_STATE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+  const initialForm = loadFormState();
+
   // ─── METADATA ───
-  const [artist1, setArtist1]           = useState("");
-  const [artist2, setArtist2]           = useState("");
-  const [beatName, setBeatName]         = useState("");
-  const [bpm, setBpm]                   = useState("140");
-  const [beatKey, setBeatKey]           = useState("Am");
-  const [vibe, setVibe]                 = useState("rage");
-  const [mood, setMood]                 = useState("");
-  const [drop, setDrop]                 = useState("0:25");
-  const [outro, setOutro]               = useState("2:30");
-  const [titleStyle, setTitleStyle]     = useState("standard");
+  const [artist1, setArtist1]           = useState(initialForm.artist1 || "");
+  const [artist2, setArtist2]           = useState(initialForm.artist2 || "");
+  const [beatName, setBeatName]         = useState(initialForm.beatName || "");
+  const [bpm, setBpm]                   = useState(initialForm.bpm || "140");
+  const [beatKey, setBeatKey]           = useState(initialForm.beatKey || "Am");
+  const [vibe, setVibe]                 = useState(initialForm.vibe || "rage");
+  const [mood, setMood]                 = useState(initialForm.mood || "");
+  const [drop, setDrop]                 = useState(initialForm.drop || "0:25");
+  const [outro, setOutro]               = useState(initialForm.outro || "2:30");
+  const [titleStyle, setTitleStyle]     = useState(initialForm.titleStyle || "standard");
 
   // ─── PIPELINE ───
   const [locked, setLocked]             = useState(false);
-  const [selectedArtwork, setSelectedArtwork] = useState("");
+  const [selectedArtwork, setSelectedArtwork] = useState(initialForm.selectedArtwork || "");
   const [cropEnabled, setCropEnabled]   = useState(false);
   const [cropRect, setCropRect]         = useState({ x: 0, y: 0, size: 1 });
   const [seoData, setSeoData]           = useState(null);
@@ -1635,8 +1654,15 @@ function App() {
   const [combos, setCombos]             = useState([]);
   const [ffmpegVer, setFfmpegVer]       = useState("");
   const [lastAction, setLastAction]     = useState("SYSTEM READY");
+  const QUALITY_PREF_KEY = "jetbox_quality_pref";
+  const loadQualityPref = () => {
+    try {
+      const raw = localStorage.getItem(QUALITY_PREF_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  };
   const [qualityModal, setQualityModal] = useState(false);
-  const [renderQuality, setRenderQuality] = useState("HD");
+  const [renderQuality, setRenderQuality] = useState(loadQualityPref()?.quality || "HD");
 
   // ─── INIT ─────────────────────────────────────────
   useEffect(() => {
@@ -1651,6 +1677,17 @@ function App() {
     const poll = setInterval(fetchBeats, 12000);
     return () => clearInterval(poll);
   }, []);
+
+  // ─── FORM STATE PERSIST — degisince kaydet ────────
+  useEffect(() => {
+    try {
+      localStorage.setItem(FORM_STATE_KEY, JSON.stringify({
+        artist1, artist2, beatName, bpm, beatKey, vibe, mood, drop, outro,
+        titleStyle, selectedArtwork, selectedPreset, lutParams,
+      }));
+    } catch {}
+  }, [artist1, artist2, beatName, bpm, beatKey, vibe, mood, drop, outro,
+      titleStyle, selectedArtwork, selectedPreset, lutParams]);
 
   // ─── LUT LAB AUTO-PREVIEW (debounced 700ms) ───────
   // When tuner sliders change in LUT Lab tab, auto-trigger preview
@@ -1957,10 +1994,27 @@ ${imgBlock}
     finally { setGenerating(false); }
   };
 
-  // ─── RENDER MP4 — shows quality modal first ───────
+  // ─── RENDER MP4 — shows quality modal first (unless remembered) ──
   const handleRenderClick = () => {
     if (!selectedArtwork || !seoData) return;
+    const pref = loadQualityPref();
+    if (pref?.remember && pref.quality) {
+      handleRender(pref.quality);
+      return;
+    }
     setQualityModal(true);  // Show 2K vs HD choice
+  };
+
+  const handleQualitySelected = (quality, remember) => {
+    setQualityModal(false);
+    try {
+      if (remember) {
+        localStorage.setItem(QUALITY_PREF_KEY, JSON.stringify({ remember: true, quality }));
+      } else {
+        localStorage.removeItem(QUALITY_PREF_KEY);
+      }
+    } catch {}
+    handleRender(quality);
   };
 
   // ── RENDER PROGRESS — tahmini ilerleme (upload bariyla ayni mantik) ──
@@ -2375,10 +2429,7 @@ ${imgBlock}
 
       {/* Quality selector modal — appears before render */}
       {qualityModal && (
-        <QualityModal onSelect={(q) => {
-          setQualityModal(false);
-          handleRender(q);
-        }} />
+        <QualityModal onSelect={handleQualitySelected} />
       )}
     </div>
   );
