@@ -34,3 +34,15 @@ desktop.ini
 Thumbs.db
 *.log
 Ekran*
+
+# ── FL STUDIO / DAW ──
+*.fst
+*.sbL
+*.fsc
+
+# ── ARSIV / SILINECEK ──
+_to_delete/
+
+# ── DB / TOKEN ──
+jetbox.db
+Claude outputs/
