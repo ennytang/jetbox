@@ -1371,7 +1371,7 @@ function PublishModal({ onClose, onPublishNow, onSchedule,
           {/* Secondary: publish now */}
           <button className="btn btn-sec" style={{width:"100%",fontSize:10}}
             disabled={deploying || !confirmed}
-            onClick={onPublishNow}>
+            onClick={() => onPublishNow()}>
             {deploying ? "..." : "⚡ PUBLISH NOW (INSTANT)"}
           </button>
           <button className="btn-ghost" style={{width:"100%",fontSize:9,padding:"6px"}}
