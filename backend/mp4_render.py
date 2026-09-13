@@ -11,8 +11,75 @@ import time
 import threading
 
 # â”€â”€â”€ CACHED EXECUTABLE PATHS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-_FFMPEG_PATH  = None  # Cached FFmpeg executable path
-_FFPROBE_PATH = None  # Cached ffprobe executable path
+_FFMPEG_PATH  = None   # Cached FFmpeg executable path
+_FFPROBE_PATH = None   # Cached ffprobe executable path
+_NVENC_AVAILABLE = None  # Cached NVENC availability (None = not tested yet)
+
+
+def _detect_nvenc() -> bool:
+    """
+    Test whether h264_nvenc is usable on this machine.
+    Result is cached — only runs once per process lifetime.
+
+    RTX 3050 Laptop GPU supports NVENC; this call takes ~0.3s on first run.
+    Falls back gracefully to libx264 (CPU) if NVENC is unavailable.
+    """
+    global _NVENC_AVAILABLE
+    if _NVENC_AVAILABLE is not None:
+        return _NVENC_AVAILABLE
+
+    ffmpeg = _find_ffmpeg() or "ffmpeg"
+    try:
+        # Encode 1 black frame to null muxer — zero disk I/O, fast test
+        result = subprocess.run(
+            [
+                ffmpeg, "-hide_banner",
+                "-f", "lavfi", "-i", "color=black:size=32x32:duration=0.1:rate=1",
+                "-c:v", "h264_nvenc",
+                "-preset", "p4",
+                "-f", "null", "-",
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        # NVENC init failure prints "No NVENC capable devices found" to stderr
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        _NVENC_AVAILABLE = ("h264_nvenc" in stderr or result.returncode == 1) and \
+                           "No NVENC" not in stderr and \
+                           "Cannot load" not in stderr and \
+                           "nvcuda.dll" not in stderr
+        # More reliable: just check that the encoder name appears in stderr output
+        _NVENC_AVAILABLE = "h264_nvenc" in stderr and "No NVENC" not in stderr
+    except Exception:
+        _NVENC_AVAILABLE = False
+
+    return _NVENC_AVAILABLE
+
+
+def _get_video_encoder() -> tuple[list[str], str]:
+    """
+    Return (ffmpeg_codec_args, codec_label) for the best available encoder.
+
+    Priority:
+      1. h264_nvenc  — RTX 3050 GPU encoder (~5-10x faster than CPU)
+         preset p4 = good quality/speed balance on NVENC
+         rc vbr + cq 20 = visually lossless variable bitrate
+      2. libx264     — CPU fallback, always available
+         tune stillimage = optimized for static frames (JETBOX use case)
+         crf 18 = high quality
+
+    Both produce H.264/yuv420p compatible with YouTube.
+    """
+    if _detect_nvenc():
+        return (
+            ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "20", "-b:v", "0"],
+            "H.264 (NVENC GPU)"
+        )
+    else:
+        return (
+            ["-c:v", "libx264", "-preset", "medium", "-crf", "18"],
+            "H.264 (CPU)"
+        )
 
 
 
@@ -113,12 +180,15 @@ def render_mp4(
     ]
     if total_duration:
         cmd += ["-t", str(round(total_duration, 4))]  # Hard cap = exact audio length
+    # Auto-detect best encoder: h264_nvenc (RTX 3050 GPU) → libx264 (CPU fallback)
+    codec_args, codec_label = _get_video_encoder()
+
     cmd += [
         "-i", image_path,                  # Input image
         "-i", audio_path,                  # Input audio
-        "-c:v", "libx264",                 # H.264
-        "-tune", "stillimage",             # Optimize for static
-        # NOT: pcm_s24le MP4 konteynerine mux edilemez (FFmpeg hata verir).
+        *codec_args,                       # h264_nvenc (GPU) or libx264 (CPU)
+        # NOTE: -tune stillimage is libx264-only, not supported by NVENC.
+        # NVENC uses -preset p4 + -cq 20 for equivalent quality.
         # AAC 384k YouTube icin fiilen kayipsizdir (YT zaten yeniden encode eder).
         "-c:a", "aac", "-b:a", "384k",
         "-ar", "48000",                    # 48kHz sample rate (YouTube standard)
@@ -150,7 +220,7 @@ def render_mp4(
             "file_size_mb": round(file_size / (1024 * 1024), 2),
             "duration": probe_info.get("duration"),
             "encoding": {
-                "video_codec": "H.264",
+                "video_codec": codec_label,
                 "audio_codec": "AAC 384k",
                 "resolution": "1920x1080",
                 "fps": 1,
@@ -256,16 +326,17 @@ def render_mp4_with_effects(
     ]
     if total_duration:
         cmd += ["-t", str(round(total_duration, 4))]  # Hard cap = exact audio length
+    # Auto-detect best encoder: h264_nvenc (RTX 3050 GPU) → libx264 (CPU fallback)
+    codec_args, codec_label = _get_video_encoder()
+
     cmd += [
         "-i", image_path,
         "-i", audio_path,
         "-filter_complex", f"{filter_chain}",
         "-map", f"[{final_label}]",
         "-map", "1:a",
-        "-c:v", "libx264",
-        "-preset", "medium",
-        "-crf", "20",
-        "-c:a", "aac", "-b:a", "384k",  # pcm_s24le MP4'e mux edilemez
+        *codec_args,                       # h264_nvenc (GPU) or libx264 (CPU)
+        "-c:a", "aac", "-b:a", "384k",    # pcm_s24le MP4'e mux edilemez
         "-ar", "48000",
         "-pix_fmt", "yuv420p",
         "-r", "24",
@@ -296,7 +367,7 @@ def render_mp4_with_effects(
             "vfx_enabled": True,
             "vfx_effects": effects,
             "encoding": {
-                "video_codec": "H.264",
+                "video_codec": codec_label,
                 "audio_codec": "AAC 384k",
                 "resolution": "1920x1080",
                 "fps": 24,

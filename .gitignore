@@ -46,3 +46,6 @@ _to_delete/
 # ── DB / TOKEN ──
 jetbox.db
 Claude outputs/
+
+# Backup files
+*.bak
